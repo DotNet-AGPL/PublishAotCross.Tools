@@ -41,7 +41,8 @@ if (isTargetingWindows) {
     return Success;
   }
 
-  if (isHostWindows && AotPreferCustom) {
+  // Only supported on win-x64 host
+  if (buildenv == "win-x64" && AotPreferCustom) {
     // Use xwin toolchain for Windows native compilation instead of VS C++ tools
     Environment.SetEnvironmentVariable("CustomAotToolChain", "xwin");
     CustomAotToolChain = "xwin";

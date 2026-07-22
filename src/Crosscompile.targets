@@ -4,7 +4,7 @@
 
   <PropertyGroup>
     <DisableUnsupportedError>true</DisableUnsupportedError>
-    <AotPreferCustom>false</AotPreferCustom>
+    <AotPreferCustom>true</AotPreferCustom>
     <HostRuntimeIdentifier Condition="'$(HostRuntimeIdentifier)' == ''">$(NETCoreSdkPortableRuntimeIdentifier)</HostRuntimeIdentifier>
     <UseExternalZig Condition="'$(UseExternalZig)' == ''">false</UseExternalZig>
   </PropertyGroup>
@@ -105,12 +105,13 @@
 
       <XwinArches Condition="'$(XwinArches)' == ''">x86_64,aarch64</XwinArches>
 
-      <CppLinker Condition="'$(PkgLLD_Link_Toolsets_win-x64)' != ''">$(PkgLLD_Link_Toolsets_win-x64)\tools\lld-link.exe</CppLinker>
+      <CppLinker Condition="'$(HostRuntimeIdentifier)' == 'win-x64' and '$(PkgLLD_Link_Toolsets_win-x64)' != ''">$(PkgLLD_Link_Toolsets_win-x64)/tools/lld-link.exe</CppLinker>
+      <CppLinker Condition="'$(HostRuntimeIdentifier)' == 'linux-x64' and '$(PkgLLD_Link_Toolsets_linux-x64)' != ''">$(PkgLLD_Link_Toolsets_linux-x64)/tools/lld-link</CppLinker>
       <CppLinker Condition="'$(CppLinker)' == ''">lld-link</CppLinker>
       <IlcUseEnvironmentalTools Condition="$(HostRuntimeIdentifier.StartsWith('win'))">true</IlcUseEnvironmentalTools>
 
-      <_XWinDir Condition="'$(PkgXWin_Toolsets_win-x64)' != ''">$(PkgXWin_Toolsets_win-x64)\tools\</_XWinDir>
-      <_XWinStore Condition="'$(PkgXWin_Toolsets_win-x64)' != ''">$(PkgXWin_Toolsets_win-x64)\tools\.xwin-store</_XWinStore>
+      <_XWinStore Condition="'$(CrossCompileArch)' == 'arm64'">$(XWinStoreDir)</_XWinStore>
+      <_XWinStore Condition="'$(_XWinStore)' == ''">$(XWinStoreDir)</_XWinStore>
     </PropertyGroup>
 
     <ItemGroup Condition=" '$(CustomAotToolChain)' == 'xwin' ">

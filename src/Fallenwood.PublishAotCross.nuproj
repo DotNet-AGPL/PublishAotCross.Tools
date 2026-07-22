@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.Build.NoTargets">
   <Import Project="ZigVersion.props" />
-  <Import Project="..\tools\ToolsetsVersion.props" />
+  <Import Project="..\toolsets\ToolsetsVersion.props" />
 
   <PropertyGroup>
 
@@ -24,9 +24,11 @@
     <PackageReference Include="Vezel.Zig.Toolsets.linux-arm64" Version="$(ZigVersion)" GeneratePathProperty="true" />
     <PackageReference Include="Vezel.Zig.Toolsets.osx-x64" Version="$(ZigVersion)" GeneratePathProperty="true" />
     <PackageReference Include="Vezel.Zig.Toolsets.osx-arm64" Version="$(ZigVersion)" GeneratePathProperty="true" />
-    <PackageReference Include="XWin.Toolsets.win-x64" Version="$(XWinVersion)" GeneratePathProperty="true" />
-    <PackageReference Include="XWin.Toolsets.win-arm64" Version="$(XWinVersion)" GeneratePathProperty="true" />
-    <PackageReference Include="LLD.Link.Toolsets.win-x64" Version="$(LLDVersion)" GeneratePathProperty="true" />
+    <PackageReference Include="XWin.Toolsets.win-x64" Version="$(XWinVersion).$(XWinRevision)" GeneratePathProperty="true" />
+    <PackageReference Include="XWin.Toolsets.win-arm64" Version="$(XWinVersion).$(XWinRevision)" GeneratePathProperty="true" />
+    <PackageReference Include="XWin.Toolsets.linux-x64" Version="$(XWinVersion).$(XWinRevision)" GeneratePathProperty="true" />
+    <PackageReference Include="LLD.Link.Toolsets.win-x64" Version="$(LLDVersion).$(LLDRevision)" GeneratePathProperty="true" />
+    <PackageReference Include="LLD.Link.Toolsets.linux-x64" Version="$(LLDVersion).$(LLDRevision)" GeneratePathProperty="true" />
 
   </ItemGroup>
 
