@@ -1,5 +1,5 @@
 <Project>
   <PropertyGroup>
-    <XWinStoreDir>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)..\tools\.xwin-store'))</XWinStoreDir>
+    <XWinStoreX64Dir>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)../tools/.xwin-store'))</XWinStoreX64Dir>
   </PropertyGroup>
 </Project>
