@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup>
+    <LLDDir>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)..\tools\'))</LLDDir>
+  </PropertyGroup>
+</Project>
