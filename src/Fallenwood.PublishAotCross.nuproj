@@ -24,12 +24,13 @@
     <PackageReference Include="Vezel.Zig.Toolsets.linux-arm64" Version="$(ZigVersion)" GeneratePathProperty="true" />
     <PackageReference Include="Vezel.Zig.Toolsets.osx-x64" Version="$(ZigVersion)" GeneratePathProperty="true" />
     <PackageReference Include="Vezel.Zig.Toolsets.osx-arm64" Version="$(ZigVersion)" GeneratePathProperty="true" />
-    <PackageReference Include="XWin.Toolsets.win-x64" Version="$(XWinVersion).$(XWinRevision)" GeneratePathProperty="true" />
-    <PackageReference Include="XWin.Toolsets.win-arm64" Version="$(XWinVersion).$(XWinRevision)" GeneratePathProperty="true" />
-    <PackageReference Include="XWin.Toolsets.linux-x64" Version="$(XWinVersion).$(XWinRevision)" GeneratePathProperty="true" />
+    <PackageReference Include="XWin.Store.x64" Version="$(XWinVersion).$(XWinRevision)" GeneratePathProperty="true" PrivateAssets="none" />
+    <PackageReference Include="XWin.Store.arm64" Version="$(XWinVersion).$(XWinRevision)" GeneratePathProperty="true" PrivateAssets="none" />
     <PackageReference Include="LLD.Link.Toolsets.win-x64" Version="$(LLDVersion).$(LLDRevision)" GeneratePathProperty="true" />
     <PackageReference Include="LLD.Link.Toolsets.linux-x64" Version="$(LLDVersion).$(LLDRevision)" GeneratePathProperty="true" />
-
+    <PackageReference Include="LLD.Link.Toolsets.win-arm64" Version="$(LLDVersion).$(LLDRevision)" GeneratePathProperty="true" />
+    <PackageReference Include="LLD.Link.Toolsets.linux-arm64" Version="$(LLDVersion).$(LLDRevision)" GeneratePathProperty="true" />
+    <PackageReference Include="LLD.Link.Toolsets.osx-arm64" Version="$(LLDVersion).$(LLDRevision)" GeneratePathProperty="true" />
   </ItemGroup>
 
   <ItemGroup>

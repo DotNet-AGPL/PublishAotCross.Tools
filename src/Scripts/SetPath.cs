@@ -22,6 +22,8 @@ if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) {
 } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
   buildenv += "win";
   isHostWindows = true;
+} else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+  buildenv += "osx";
 }
 
 if (RuntimeInformation.OSArchitecture == Architecture.X64) {
