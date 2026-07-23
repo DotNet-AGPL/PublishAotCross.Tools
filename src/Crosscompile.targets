@@ -39,13 +39,11 @@
     Name="SetPathToClang"
     BeforeTargets="SetupOSSpecificProps">
     <PropertyGroup Condition="$(HostRuntimeIdentifier.StartsWith('win-'))">
-      <ZigPath Condition="$(HostRuntimeIdentifier.EndsWith('-x86'))">$(PkgVezel_Zig_Toolsets_win-x86)/tools</ZigPath>
       <ZigPath Condition="$(HostRuntimeIdentifier.EndsWith('-x64'))">$(PkgVezel_Zig_Toolsets_win-x64)/tools</ZigPath>
       <ZigPath Condition="$(HostRuntimeIdentifier.EndsWith('-arm64'))">$(PkgVezel_Zig_Toolsets_win-arm64)/tools</ZigPath>
     </PropertyGroup>
 
     <PropertyGroup Condition="$(HostRuntimeIdentifier.StartsWith('linux-'))">
-      <ZigPath Condition="$(HostRuntimeIdentifier.EndsWith('-x86'))">$(PkgVezel_Zig_Toolsets_linux-x86)/tools</ZigPath>
       <ZigPath Condition="$(HostRuntimeIdentifier.EndsWith('-x64'))">$(PkgVezel_Zig_Toolsets_linux-x64)/tools</ZigPath>
       <ZigPath Condition="$(HostRuntimeIdentifier.EndsWith('-arm64'))">$(PkgVezel_Zig_Toolsets_linux-arm64)/tools</ZigPath>
     </PropertyGroup>
@@ -81,14 +79,12 @@
       <CrossCompileArch />
       <CrossCompileArch Condition="$(CrossCompileRid.EndsWith('-x64'))">x86_64</CrossCompileArch>
       <CrossCompileArch Condition="$(CrossCompileRid.EndsWith('-arm64'))">aarch64</CrossCompileArch>
-      <CrossCompileArch Condition="$(CrossCompileRid.EndsWith('-arm'))">arm</CrossCompileArch>
 
       <GlibcSuffix Condition="'$(GlibcVersion)' != ''">.$(GlibcVersion)</GlibcSuffix>
 
       <TargetTriple />
       <TargetTriple Condition="'$(CrossCompileArch)' != '' and $(CrossCompileRid.StartsWith('linux'))">$(CrossCompileArch)-linux-gnu$(GlibcSuffix)</TargetTriple>
       <TargetTriple Condition="'$(CrossCompileArch)' != '' and ($(CrossCompileRid.StartsWith('linux-musl')) or $(CrossCompileRid.StartsWith('alpine')))">$(CrossCompileArch)-linux-musl</TargetTriple>
-      <TargetTriple Condition="'$(CrossCompileArch)' == 'arm' and $(CrossCompileRid.StartsWith('linux-musl'))">thumb-linux-musleabihf</TargetTriple>
       <TargetTriple Condition="'$(CrossCompileArch)' != '' and $(CrossCompileRid.StartsWith('osx'))">$(CrossCompileArch)-macos</TargetTriple>
     </PropertyGroup>
 
@@ -102,23 +98,20 @@
 
       <CrossCompileArch />
       <CrossCompileArch Condition="$(CrossCompileRid.EndsWith('-x64'))">x64</CrossCompileArch>
-      <CrossCompileArch Condition="$(CrossCompileRid.EndsWith('-x86'))">x86</CrossCompileArch>
       <CrossCompileArch Condition="$(CrossCompileRid.EndsWith('-arm64'))">arm64</CrossCompileArch>
-      <CrossCompileArch Condition="$(CrossCompileRid.EndsWith('-arm'))">arm</CrossCompileArch>
 
       <XwinArches Condition="'$(XwinArches)' == ''">x86_64,aarch64</XwinArches>
 
-      <CppLinker Condition="'$(HostRuntimeIdentifier)' == 'win-x64' and '$(PkgLLD_Link_Toolsets_win-x64)' != ''">$(PkgLLD_Link_Toolsets_win-x64)/tools/lld-link.exe</CppLinker>
-      <CppLinker Condition="'$(HostRuntimeIdentifier)' == 'win-arm64' and '$(PkgLLD_Link_Toolsets_win_arm64)' != ''">$(PkgLLD_Link_Toolsets_win_arm64)/tools/lld-link.exe</CppLinker>
-      <CppLinker Condition="'$(HostRuntimeIdentifier)' == 'linux-x64' and '$(PkgLLD_Link_Toolsets_linux-x64)' != ''">$(PkgLLD_Link_Toolsets_linux-x64)/tools/lld-link</CppLinker>
-      <CppLinker Condition="'$(HostRuntimeIdentifier)' == 'linux-arm64' and '$(PkgLLD_Link_Toolsets_linux-arm64)' != ''">$(PkgLLD_Link_Toolsets_linux-arm64)/tools/lld-link</CppLinker>
-      <CppLinker Condition="'$(HostRuntimeIdentifier)' == 'osx-arm64' and '$(PkgLLD_Link_Toolsets_osx-arm64)' != ''">$(PkgLLD_Link_Toolsets_osx-arm64)/tools/lld-link</CppLinker>
+      <CppLinker Condition="'$(HostRuntimeIdentifier)' == 'win-x64'">$(LLDLinkToolsetsWinX64Dir)lld-link.exe</CppLinker>
+      <CppLinker Condition="'$(HostRuntimeIdentifier)' == 'win-arm64'">$(LLDLinkToolsetsWinArm64Dir)lld-link.exe</CppLinker>
+      <CppLinker Condition="'$(HostRuntimeIdentifier)' == 'linux-x64'">$(LLDLinkToolsetsLinuxX64Dir)lld-link</CppLinker>
+      <CppLinker Condition="'$(HostRuntimeIdentifier)' == 'linux-arm64'">$(LLDLinkToolsetsLinuxArm64Dir)lld-link</CppLinker>
+      <CppLinker Condition="'$(HostRuntimeIdentifier)' == 'osx-arm64'">$(LLDLinkToolsetsOsxArm64Dir)lld-link</CppLinker>
       <CppLinker Condition="'$(CppLinker)' == ''">lld-link</CppLinker>
       <IlcUseEnvironmentalTools Condition="$(HostRuntimeIdentifier.StartsWith('win'))">true</IlcUseEnvironmentalTools>
 
-      <_XWinStore Condition="'$(PkgXWin_Store_x64)' != ''">$(PkgXWin_Store_x64)/tools/.xwin-store</_XWinStore>
-      <_XWinStore Condition="'$(CrossCompileArch)' == 'arm64' and '$(PkgXWin_Store_arm64)' != ''">$(PkgXWin_Store_arm64)/tools/.xwin-store</_XWinStore>
-      <_XWinStore Condition="'$(_XWinStore)' == ''">$(XWinStoreDir)</_XWinStore>
+      <_XWinStore Condition="'$(CrossCompileArch)' == 'arm64'">$(XWinStoreArm64Dir)</_XWinStore>
+      <_XWinStore Condition="'$(CrossCompileArch)' != 'arm64'">$(XWinStoreX64Dir)</_XWinStore>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(CustomAotToolChain)' == 'xwin' and '$(_XWinStore)' == ''">
