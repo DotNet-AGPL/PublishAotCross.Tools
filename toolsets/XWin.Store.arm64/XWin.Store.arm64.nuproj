@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.Build.NoTargets">
+  <Import Project="..\ToolsetsVersion.props" />
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <PackageId>XWin.Store.arm64</PackageId>
+    <Version>$(XWinVersion).$(XWinRevision)</Version>
+    <Description>Windows arm64 SDK store (xwin splat output) for NativeAOT cross-compilation</Description>
+    <PackageProjectUrl>https://github.com/DotNet-AGPL/Fallenwood.PublishAotCross.Extensions/tree/main/toolsets/XWin.Store.arm64</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include=".xwin-store-tmp\**\*" Pack="true" PackagePath="tools\.xwin-store" />
+    <None Include="build\XWin.Store.arm64.props" Pack="true" PackagePath="build" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>
