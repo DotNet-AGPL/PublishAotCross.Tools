@@ -9,7 +9,7 @@
     <Authors>LLVM Project;DotNet-AGPL</Authors>
     <Description>lld-link (LLD COFF linker) for win-arm64 host platform. MSVC-compatible linker used for NativeAOT cross-compilation.</Description>
     <PackageProjectUrl>https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/LLD.Link.Toolsets.win-arm64</PackageProjectUrl>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseExpression>MIT OR AGPL-3.0-or-later</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <DevelopmentDependency>true</DevelopmentDependency>
   </PropertyGroup>

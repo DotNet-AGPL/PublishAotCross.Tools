@@ -9,7 +9,7 @@
     <Company>DotNet-AGPL</Company>
     <Description>MSBuild targets to aid in crosscompiling Native AOT publishing.</Description>
     <PackageProjectUrl>https://github.com/DotNet-AGPL/PublishAotCross.Tools</PackageProjectUrl>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseExpression>MIT OR AGPL-3.0-or-later</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 

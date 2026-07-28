@@ -1,4 +1,4 @@
-The code in this package is licensed under the MIT License.
+The code in this package is dual-licensed under MIT OR AGPL-3.0-or-later.
 
 The bundled `lld-link` is a binary from the LLVM project,
 licensed under the Apache License, Version 2.0 with LLVM Exceptions.

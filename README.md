@@ -1,6 +1,8 @@
 PublishAotCross
 ---
 
+[![License](docs/badge-license.svg)](LICENSE.TXT)
+
 Forked from [MichalStrehovsky/PublishAotCross](https://github.com/MichalStrehovsky/PublishAotCross "")
 
 This is a NuGet package with an MSBuild target to aid in crosscompilation with [PublishAot](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/). It helps resolving following error:
