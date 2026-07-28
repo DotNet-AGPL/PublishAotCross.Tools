@@ -1,7 +1,5 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-  <Import Project="$(MSBuildThisFileDirectory)ZigVersion.props" Condition="'$(ZigVersion)' == ''" />
-
   <PropertyGroup>
     <DisableUnsupportedError>true</DisableUnsupportedError>
     <AotPreferCustom>true</AotPreferCustom>

@@ -1,0 +1,83 @@
+<Solution>
+  <Folder Name="/src/">
+    <File Path="src/Crosscompile.targets" />
+    <File Path="src/download-llvm-objcopy.ps1" />
+    <File Path="src/PublishAotCross.Tools.nuproj" />
+    <File Path="src/PublishAotCross.Tools.props" />
+    <File Path="src/PublishAotCross.Tools.targets" />
+  </Folder>
+  <Folder Name="/src/Scripts/">
+    <File Path="src/Scripts/SetPath.cs" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/ConsoleApp/ConsoleApp.csproj" />
+    <Project Path="test/TestPublish/TestNupkg.csproj" />
+  </Folder>
+  <Folder Name="/.md/">
+    <File Path="AGENTS.md" />
+    <File Path="LICENSE.TXT" />
+    <File Path="NuGet.Config" />
+    <File Path="pack_src.bat" />
+    <File Path="pack_src.sh" />
+    <File Path="pack_toolsets.bat" />
+    <File Path="pack_toolsets.sh" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/toolsets/">
+    <File Path="toolsets/ToolsetsVersion.props" />
+  </Folder>
+  <Folder Name="/toolsets/XWin.Store.x64/">
+    <File Path="toolsets/XWin.Store.x64/README.md" />
+    <File Path="toolsets/XWin.Store.x64/XWin.Store.x64.nuproj" />
+  </Folder>
+  <Folder Name="/toolsets/XWin.Store.x64/build/">
+    <File Path="toolsets/XWin.Store.x64/build/XWin.Store.x64.props" />
+  </Folder>
+  <Folder Name="/toolsets/XWin.Store.arm64/">
+    <File Path="toolsets/XWin.Store.arm64/README.md" />
+    <File Path="toolsets/XWin.Store.arm64/XWin.Store.arm64.nuproj" />
+  </Folder>
+  <Folder Name="/toolsets/XWin.Store.arm64/build/">
+    <File Path="toolsets/XWin.Store.arm64/build/XWin.Store.arm64.props" />
+  </Folder>
+
+  <Folder Name="/toolsets/LLD.Link.Toolsets.win-x64/">
+    <File Path="toolsets/LLD.Link.Toolsets.win-x64/README.md" />
+    <File Path="toolsets/LLD.Link.Toolsets.win-x64/LLD.Link.Toolsets.win-x64.nuproj" />
+  </Folder>
+  <Folder Name="/toolsets/LLD.Link.Toolsets.win-x64/build/">
+    <File Path="toolsets/LLD.Link.Toolsets.win-x64/build/LLD.Link.Toolsets.win-x64.props" />
+  </Folder>
+
+  <Folder Name="/toolsets/LLD.Link.Toolsets.win-arm64/">
+    <File Path="toolsets/LLD.Link.Toolsets.win-arm64/README.md" />
+    <File Path="toolsets/LLD.Link.Toolsets.win-arm64/LLD.Link.Toolsets.win-arm64.nuproj" />
+  </Folder>
+  <Folder Name="/toolsets/LLD.Link.Toolsets.win-arm64/build/">
+    <File Path="toolsets/LLD.Link.Toolsets.win-arm64/build/LLD.Link.Toolsets.win-arm64.props" />
+  </Folder>
+
+  <Folder Name="/toolsets/LLD.Link.Toolsets.linux-x64/">
+    <File Path="toolsets/LLD.Link.Toolsets.linux-x64/README.md" />
+    <File Path="toolsets/LLD.Link.Toolsets.linux-x64/LLD.Link.Toolsets.linux-x64.nuproj" />
+  </Folder>
+  <Folder Name="/toolsets/LLD.Link.Toolsets.linux-x64/build/">
+    <File Path="toolsets/LLD.Link.Toolsets.linux-x64/build/LLD.Link.Toolsets.linux-x64.props" />
+  </Folder>
+
+  <Folder Name="/toolsets/LLD.Link.Toolsets.linux-arm64/">
+    <File Path="toolsets/LLD.Link.Toolsets.linux-arm64/README.md" />
+    <File Path="toolsets/LLD.Link.Toolsets.linux-arm64/LLD.Link.Toolsets.linux-arm64.nuproj" />
+  </Folder>
+  <Folder Name="/toolsets/LLD.Link.Toolsets.linux-arm64/build/">
+    <File Path="toolsets/LLD.Link.Toolsets.linux-arm64/build/LLD.Link.Toolsets.linux-arm64.props" />
+  </Folder>
+
+  <Folder Name="/toolsets/LLD.Link.Toolsets.osx-arm64/">
+    <File Path="toolsets/LLD.Link.Toolsets.osx-arm64/README.md" />
+    <File Path="toolsets/LLD.Link.Toolsets.osx-arm64/LLD.Link.Toolsets.osx-arm64.nuproj" />
+  </Folder>
+  <Folder Name="/toolsets/LLD.Link.Toolsets.osx-arm64/build/">
+    <File Path="toolsets/LLD.Link.Toolsets.osx-arm64/build/LLD.Link.Toolsets.osx-arm64.props" />
+  </Folder>
+</Solution>

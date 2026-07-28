@@ -1,5 +1,10 @@
 #! /usr/bin/env sh
 
-set -x
-
-llvm-objcopy $*
+if command -v llvm-objcopy >/dev/null 2>&1; then
+  exec llvm-objcopy "$@"
+elif command -v objcopy >/dev/null 2>&1; then
+  exec objcopy "$@"
+else
+  echo "Warning: neither llvm-objcopy nor objcopy found on PATH, skipping strip"
+  exit 0
+fi

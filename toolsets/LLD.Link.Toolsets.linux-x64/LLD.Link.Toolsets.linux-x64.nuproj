@@ -5,7 +5,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <PackageId>LLD.Link.Toolsets.linux-x64</PackageId>
-    <Version>$(LLDVersion).$(LLDRevision)</Version>
+    <Version>$(LLDVersion).$(Revision)</Version>
     <Authors>LLVM Project;DotNet-AGPL</Authors>
     <Description>lld-link (LLD COFF linker) for linux-x64 host platform. MSVC-compatible linker used for NativeAOT cross-compilation.</Description>
     <PackageProjectUrl>https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/LLD.Link.Toolsets.linux-x64</PackageProjectUrl>
