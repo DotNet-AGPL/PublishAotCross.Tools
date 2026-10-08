@@ -68,8 +68,8 @@ if ($outFile) {
 }
 
 $zig = if (Get-Command zig -ErrorAction SilentlyContinue) { 'zig' } else {
-  Join-Path $env:ProgramData "Nuget\packages\vezel.zig.toolsets.win-x64\0.16.0.2\tools\zig.exe"
+  Join-Path $env:ProgramData "Nuget\packages\vezel.zig.toolsets.win-arm64\0.17.0.1\tools\zig.exe"
 }
 
-& $zig cc --target=x86_64-windows-msvc @zigArgs
+& $zig cc --target=aarch64-windows-msvc @zigArgs
 exit $LASTEXITCODE

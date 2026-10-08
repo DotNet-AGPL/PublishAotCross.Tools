@@ -4,7 +4,7 @@ Windows x64 SDK store for NativeAOT cross-compilation.
 Bundles pre-downloaded CRT, UCRT, and Win32 API import libraries.
 Used by `PublishAotCross.Tools`. No manual download required.
 
-**xwin version:** 0.9.0 (Windows SDK 10.0.22621)
+**xwin version:** 0.10.0 (Windows SDK 10.0.22621)
 
 **Source:** https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/XWin.Store.x64
 
@@ -65,7 +65,7 @@ what is necessary for NativeAOT compilation.
 
 The SDK store in this package was downloaded from Microsoft's official
 Windows SDK (version 10.0.22621) using [xwin](https://github.com/Jake-Shadle/xwin)
-v0.9.0, then filtered for NativeAOT cross-compilation use.
+v0.10.0, then filtered for NativeAOT cross-compilation use.
 
 xwin is an open-source tool that downloads and manages Windows SDK/CRT
 files. Its source code and license are available at:

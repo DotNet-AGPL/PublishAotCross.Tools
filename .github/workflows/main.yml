@@ -1,5 +1,15 @@
 name: CI
 
+# Notes:
+#   The XWin.Store.* packages are built by maintainers from a local xwin SDK
+#   store (see toolsets/download-xwin-store.ps1). Their content is gitignored,
+#   so CI cannot rebuild them. This workflow therefore validates cross-compilation
+#   against the packages restored from the configured NuGet feeds.
+#
+#   Run the release job manually (workflow_dispatch with a version) after the
+#   XWin.Store.* / LLD.Link.Toolsets.* packages for the current revision have
+#   been published.
+
 on:
   pull_request:
     branches: [ master ]
@@ -11,174 +21,88 @@ on:
         required: false
 
 jobs:
-  build_multitarget_linux:
-    strategy:
-      matrix:
-        include:
-          - vm: ubuntu-24.04
-    runs-on: ${{ matrix.vm }}
-    name: Build Multi Target ${{ matrix.vm }}
+  cross_compile_windows:
+    runs-on: windows-latest
+    name: Cross-compile (Windows host)
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
-      - name: Setup dotnet 8.0
-        uses: actions/setup-dotnet@v2
+        uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
-      - name: Setup dotnet 9.0
-        uses: actions/setup-dotnet@v2
-        with:
-          dotnet-version: '9.0.x'
-      - name: Setup dotnet 10.0
-        uses: actions/setup-dotnet@v2
-        with:
-          dotnet-version: '10.0.x'
-          include-prerelease: true
-      - name: Install lld-link
-        run: sudo apt-get install --no-install-suggests --no-install-recommends lld llvm
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
 
-      - name: Download llvm-objcopy
-        run: ./src/download-llvm-objcopy.ps1
-        shell: pwsh
-
-      - name: Setup xwin
+      - name: Cross-compile win-x64 and win-arm64
         run: |
-          xwin_version="0.6.6-rc.2"
-          wget https://github.com/Jake-Shadle/xwin/releases/download/${xwin_version}/xwin-${xwin_version}-x86_64-unknown-linux-musl.tar.gz
-          tar -xf xwin-${xwin_version}-x86_64-unknown-linux-musl.tar.gz
-          mkdir -p $HOME/.local/bin
-          cp xwin-${xwin_version}-x86_64-unknown-linux-musl/xwin $HOME/.local/bin
-          chmod +x $HOME/.local/bin/xwin
-      - name: Build (CI)
-        run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          dotnet build -c Release -t:Pack src/Fallenwood.PublishAotCross.nuproj
-          dotnet publish -r linux-musl-arm64 -c Release test/Hello.csproj -p:StripSymbols=true
-          dotnet publish -r linux-musl-x64 -c Release test/Hello.csproj -p:StripSymbols=true -o output-linux-musl-x64
-          dotnet publish -r linux-musl-arm -c Release test/Hello9.csproj -p:StripSymbols=true -o output-linux-musl-arm
-          dotnet publish -r linux-musl-arm -c Release test/Hello10.csproj -p:StripSymbols=true -o output-linux-musl-arm
-          dotnet publish -r win-x64 -c Release test/Hello.csproj -p:StripSymbols=true -o output-win-x64
-          dotnet publish -r win-x64 -c Release test/Hello9.csproj -p:StripSymbols=true -o output-win-x64
-          dotnet publish -r win-x64 -c Release test/Hello10.csproj -p:StripSymbols=true -o output-win-x64
-          dotnet publish -r win-arm64 -c Release test/Hello.csproj -p:StripSymbols=true -o output-win-arm64
-          dotnet publish -r win-arm64 -c Release test/Hello9.csproj -p:StripSymbols=true -o output-win-arm64
-          dotnet publish -r win-arm64 -c Release test/Hello10.csproj -p:StripSymbols=true -o output-win-arm64
+          dotnet publish test/TestPublish/TestNupkg.csproj -c Release -r win-x64 -o output/win-x64
+          dotnet publish test/TestPublish/TestNupkg.csproj -c Release -r win-arm64 -o output/win-arm64
 
-  build_multitarget_windows:
-    strategy:
-      matrix:
-        include:
-          - vm: windows-latest
-    runs-on: ${{ matrix.vm }}
-    name: Build Multi Target ${{ matrix.vm }}
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
-      - name: Setup dotnet 8.0
-        uses: actions/setup-dotnet@v2
-        with:
-          dotnet-version: '8.0.x'
-      - name: Setup dotnet 9.0
-        uses: actions/setup-dotnet@v2
-        with:
-          dotnet-version: '9.0.x'
-      - name: Setup dotnet 10.0
-        uses: actions/setup-dotnet@v2
-        with:
-          dotnet-version: '10.0.x'
-          include-prerelease: true
-
-      - name: Download llvm-objcopy
-        run: ./src/download-llvm-objcopy.ps1
-        shell: pwsh
-
-      - name: Build (CI)
-        run: |
-          dotnet build -c Release -t:Pack src/Fallenwood.PublishAotCross.nuproj
-          dotnet publish -r linux-musl-arm64 -c Release test/Hello.csproj -p:StripSymbols=true
-          dotnet publish -r linux-musl-x64 -c Release test/Hello.csproj -p:StripSymbols=true -o output-linux-musl-x64
-          dotnet publish -r linux-musl-arm -c Release test/Hello9.csproj -p:StripSymbols=true -o output-linux-musl-arm
-          dotnet publish -r linux-musl-x64 -c Release test/Hello10.csproj -p:StripSymbols=true -o output-linux-musl-x64
-          dotnet publish -r linux-musl-x64 -c Release test/HelloStatic8.csproj -p:StripSymbols=true -o output-linux-musl-x64
-          dotnet publish -r linux-musl-x64 -c Release test/HelloStatic10.csproj -p:StripSymbols=true -o output-linux-musl-x64
-
-  build:
-    strategy:
-      matrix:
-        include:
-          - vm: windows-latest
-    runs-on: ${{ matrix.vm }}
-    name: Build and Validate ${{ matrix.vm }}
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
-      - name: Setup dotnet
-        uses: actions/setup-dotnet@v2
-        with:
-          dotnet-version: '8.0.x'
-      - name: Setup Zig
-        uses: mlugg/setup-zig@v2
-        with:
-          version: "0.16.0"
-
-      - name: Download llvm-objcopy
-        run: ./src/download-llvm-objcopy.ps1
-        shell: pwsh
-
-      - name: Build (CI)
-        run: |
-          dotnet build -c Release -t:Pack src/Fallenwood.PublishAotCross.nuproj
-          dotnet publish -r linux-x64 -c Release test/Hello.csproj -p:StripSymbols=true -p:UseExternalZig=true
-      - name: Upload test binary
+      - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
-          name: Hello
-          path: test/bin/Release/net8.0/linux-x64/publish/Hello
+          name: win-binaries
+          path: output/**
 
-  validate:
-    needs: build
-    runs-on: ubuntu-latest
-    name: Try launching
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: Hello
-      - name: Launch
-        run: |
-          chmod +x ./Hello
-          ./Hello
-
-  release:
-    needs: [validate, build_multitarget_linux, build_multitarget_windows]
-    runs-on: ubuntu-latest
-    name: Release
+  cross_compile_linux:
+    runs-on: ubuntu-24.04
+    name: Cross-compile (Linux host)
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
-      - name: Setup NuGet
-        uses: NuGet/setup-nuget@v2
+        uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
-          nuget-version: latest
-      - name: Setup dotnet 10.0
-        uses: actions/setup-dotnet@v2
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Cross-compile linux-x64 and linux-arm64
+        run: |
+          dotnet publish test/TestPublish/TestNupkg.csproj -c Release -r linux-x64 -o output/linux-x64
+          dotnet publish test/TestPublish/TestNupkg.csproj -c Release -r linux-arm64 -o output/linux-arm64
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-binaries
+          path: output/**
+
+  validate_linux:
+    needs: cross_compile_linux
+    runs-on: ubuntu-latest
+    name: Validate linux-x64 binary
+    steps:
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-binaries
+      - name: Run
+        run: |
+          chmod +x linux-x64/TestNupkg
+          ./linux-x64/TestNupkg
+
+  release:
+    needs: [ cross_compile_windows, cross_compile_linux ]
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version != '' }}
+    runs-on: ubuntu-latest
+    name: Pack and publish
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - uses: milliewalky/setup-7-zip@v2
-        with:
-          tag: "latest"
+      - name: Pack
+        run: dotnet pack src/PublishAotCross.Tools.nuproj -c Release -o artifacts --force -p:Version=${{ github.event.inputs.version }}
 
-      - name: Download llvm-objcopy
-        run: ./src/download-llvm-objcopy.ps1
-        shell: pwsh
-
-      - name: Build (CD)
-        if: ${{ github.event.inputs.version != '' }}
-        run: dotnet build -c Release -t:Pack src/Fallenwood.PublishAotCross.nuproj -p:Version=${{ github.event.inputs.version }}
       - name: Push to GitHub package registry
-        if: ${{ github.event.inputs.version != '' }}
-        run: dotnet nuget push src/bin/Release/*.nupkg --api-key ${{ secrets.GITHUB_TOKEN }} --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+        run: dotnet nuget push artifacts/*.nupkg --api-key ${{ secrets.GITHUB_TOKEN }} --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+
       - name: Push to NuGet.org
-        if: ${{ github.event.inputs.version != '' }}
-        run: dotnet nuget push src/bin/Release/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+        run: dotnet nuget push artifacts/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json

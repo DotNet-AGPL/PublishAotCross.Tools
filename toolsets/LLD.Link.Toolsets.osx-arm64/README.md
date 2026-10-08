@@ -4,7 +4,7 @@ lld-link (LLD COFF linker) for osx-arm64 host platform.
 MSVC-compatible linker used for NativeAOT cross-compilation.
 Bundled in NuGet package - no manual installation required.
 
-**LLVM version:** 22.1.8
+**LLVM version:** 23.1.3
 
 **Source:** https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/LLD.Link.Toolsets.osx-arm64
 
