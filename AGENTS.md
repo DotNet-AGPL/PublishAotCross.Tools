@@ -26,7 +26,7 @@ toolsets/
 │   ├── LLD.Link.Toolsets.osx-arm64.nuproj
 │   └── tools/lld-link.zip
 ├── LLVM-Source/                        ← 各平台 LLVM 二进制包（提取 lld-link 的来源）
-├── ToolsetsVersion.props                ← XWinVersion=0.9.0, LLDVersion=22.1.8, Revision=4
+├── ToolsetsVersion.props                ← XWinVersion=0.10.0, LLDVersion=23.1.3, Revision=8
 ├── xwin.exe                             ← xwin CLI v$(XWinVersion)（仅供维护者更新 store，不打包进 NuGet）
 ├── download-xwin-store.ps1              ← 下载 xwin SDK store（x64 + arm64 过滤打包到各自平台包）
 └── download-lld-link.ps1                ← 从 LLVM 安装包提取各平台 lld-link（支持 -Linux 参数）
@@ -39,7 +39,10 @@ src/
 └── PublishAotCross.Tools.targets   ← 自动导入
 
 test/
-└── TestNupkg.csproj                     ← Native AOT 验证项目
+├── AvaloniaApp/                         ← Avalonia + Native AOT 验证 (ACadSharp DWG 文本提取)
+├── ConsoleApp/
+└── TestPublish/
+    └── TestNupkg.csproj                 ← Native AOT 交叉编译验证
 ```
 
 ## 关键文件
@@ -48,7 +51,7 @@ test/
 | ---------------------------------- | ----------------------------------------------------------------------------------- |
 | `src/Crosscompile.targets`       | `CustomAotToolChain=xwin` → xwin 链路；`=zig` → zig 链路                      |
 | `src/Scripts/SetPath.cs`         | 判断宿主/目标平台，设置`CustomAotToolChain`                                       |
-| `toolsets/ToolsetsVersion.props` | `XWinVersion=0.9.0`、`LLDVersion=22.1.8`、`Revision=4` |
+| `toolsets/ToolsetsVersion.props` | `XWinVersion=0.10.0`、`LLDVersion=23.1.3`、`Revision=8` |
 | `win-x64`                        | `dotnet publish -c Release -r win-x64`                                            |
 | `win-arm64`                      | `dotnet publish -c Release -r win-arm64`                                          |
 | `linux-x64`                      | `dotnet publish -c Release -r linux-x64`                                          |
@@ -99,23 +102,32 @@ test/
 
 ```bash
 # 1. 修改版本号 src/PublishAotCross.Tools.nuproj → Version
-# 2. 打包（默认版本 0.6.1.4，或通过 -p:Version 指定）
+# 2. 打包（默认版本 0.6.0.8，或通过 -p:Version 指定）
 dotnet pack src\PublishAotCross.Tools.nuproj -o artifacts --force
 # 3. 推送
-dotnet nuget push artifacts\PublishAotCross.Tools.0.6.1.4.nupkg --api-key <key> --source https://api.nuget.org/v3/index.json
+dotnet nuget push artifacts\PublishAotCross.Tools.0.6.0.8.nupkg --api-key <key> --source https://api.nuget.org/v3/index.json
 ```
 
 ## 测试
 
+### TestNupkg（交叉编译验证）
+
 ```bash
 # win-x64
-dotnet publish test/TestNupkg.csproj -c Release -r win-x64
+dotnet publish test/TestPublish/TestNupkg.csproj -c Release -r win-x64
 
 # win-arm64（ARM64 交叉编译）
-dotnet publish test/TestNupkg.csproj -c Release -r win-arm64
+dotnet publish test/TestPublish/TestNupkg.csproj -c Release -r win-arm64
 
 # linux-x64（跨平台 zig）
-dotnet publish test/TestNupkg.csproj -c Release -r linux-x64
+dotnet publish test/TestPublish/TestNupkg.csproj -c Release -r linux-x64
+```
+
+### AvaloniaApp（Avalonia + ACadSharp + Native AOT）
+
+```bash
+# win-x64
+dotnet publish test/AvaloniaApp/AvaloniaApp.csproj -c Release -r win-x64
 ```
 
 ## 新增平台

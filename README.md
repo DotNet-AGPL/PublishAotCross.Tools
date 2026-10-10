@@ -22,7 +22,7 @@ The xwin implemetation is based on [Windows10CE's project](https://github.com/Wi
 
 #### Zig
 
-By default it relies on Zig provided by the unofficial [Vezel.Zig.Toolsets](https://github.com/vezel-dev/zig-toolsets) NuGet package. You can specify version of this package using the `ZigVersion` property (current default: `0.16.0.2`). Instructions for using your own Zig binaries are near the end of this document.
+By default it relies on Zig provided by the unofficial [Vezel.Zig.Toolsets](https://github.com/vezel-dev/zig-toolsets) NuGet package. You can specify version of this package using the `ZigVersion` property (current default: `0.17.0.1`). Instructions for using your own Zig binaries are near the end of this document.
 
 If you don't want to use Zig from the Vezel.Zig.Toolsets NuGet package, you can specify `/p:UseExternalZig=true`. This will use whatever Zig is on your PATH. [Download](https://ziglang.org/download/) an archive with Zig for your host machine, extract it and place it on your PATH.
 
@@ -67,7 +67,7 @@ When `dotnet restore` resolves these packages, the import libraries (`splat/crt`
 
 For maintainers: the store is generated using the [xwin](https://github.com/Jake-Shadle/xwin) CLI (`xwin.exe` in `toolsets/`) by running `toolsets/download-xwin-store.ps1` (admin required). This script downloads the official Windows SDK store once and filters it into a lightweight set of import libraries that are then packed into the NuGet package.
 
-- Version defined in `toolsets/ToolsetsVersion.props` via `XWinVersion` property (current: `0.9.0`).
+- Version defined in `toolsets/ToolsetsVersion.props` via `XWinVersion` property (current: `0.10.0`).
 - The xwin CLI itself is not bundled into the NuGet package — it is only used for store generation.
 
 ### Use Zig as c compiler on same host

@@ -16,3 +16,4 @@ toolsets/LLD.Link.Toolsets.linux-x64/tools/lld-link
 toolsets/LLD.Link.Toolsets.linux-arm64/tools/lld-link
 toolsets/LLD.Link.Toolsets.osx-arm64/tools/lld-link
 toolsets/LLD.Link.Toolsets.win-arm64/tools/lld-link.exe
+.env
