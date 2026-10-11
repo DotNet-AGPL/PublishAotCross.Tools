@@ -22,6 +22,15 @@ foreach ($arg in $args) {
   $zigArgs += $translatedArg
 }
 
+# macOS cross-compilation: inject the macOS SDK sysroot (compile + link) and
+# request an ad-hoc code signature (link only; required on Apple Silicon).
+if ($env:MACOSX_SDK -and (($zigArgs -join ' ') -match 'macos|apple')) {
+  $zigArgs = @('-isysroot', $env:MACOSX_SDK) + $zigArgs
+  if (-not ($zigArgs -contains '-c')) {
+    $zigArgs += '-Wl,-adhoc_codesign'
+  }
+}
+
 $zigArgs = @('-Wl,-u,__Module') + $zigArgs
 
 & zig cc @zigArgs

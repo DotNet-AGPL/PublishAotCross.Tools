@@ -97,6 +97,89 @@ jobs:
           path: output/**
           if-no-files-found: error
 
+  # PoC: cross-compile osx-arm64 from a Windows host using the macOS SDK.
+  cross_osx_arm64:
+    name: Cross-compile osx-arm64 (Windows host)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Create local NuGet feed folder
+        shell: bash
+        run: mkdir -p artifacts
+
+      - name: Pack PublishAotCross.Tools into the local feed
+        shell: bash
+        run: >
+          dotnet pack src/PublishAotCross.Tools.nuproj
+          -c Release -o artifacts --force
+          -p:PublishAotCrossVersion=${{ env.LOCAL_PKG_VERSION }}
+
+      - name: Download and extract the macOS SDK
+        shell: pwsh
+        run: |
+          $url = "https://github.com/joseluisq/macosx-sdks/releases/download/26.1/MacOSX26.1.sdk.tar.xz"
+          $archive = Join-Path $env:RUNNER_TEMP "MacOSX26.1.sdk.tar.xz"
+          Invoke-WebRequest -Uri $url -OutFile $archive
+          $extract = Join-Path $env:RUNNER_TEMP "macosx-sdk"
+          New-Item -ItemType Directory -Force -Path $extract | Out-Null
+          if (Get-Command 7z -ErrorAction SilentlyContinue) {
+            & 7z x $archive "-o$extract" -y | Out-Null
+            $tar = Get-ChildItem $extract -Filter *.tar | Select-Object -First 1
+            & 7z x $tar.FullName "-o$extract" -y | Out-Null
+          } else {
+            tar -xf $archive -C $extract
+          }
+          $sdk = Get-ChildItem $extract -Directory -Recurse -Filter "*.sdk" | Select-Object -First 1
+          if (-not $sdk) { throw "macOS SDK not found after extraction" }
+          "MACOSX_SDK=$($sdk.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "MACOSX_SDK=$($sdk.FullName)"
+
+      - name: Cross-compile osx-arm64
+        shell: bash
+        run: >
+          dotnet publish test/TestPublish/TestNupkg.csproj
+          -c Release -f net10.0 -r osx-arm64 -o output/osx-arm64
+          -p:PublishAotCrossVersion=${{ env.LOCAL_PKG_VERSION }}
+
+      - name: Verify Mach-O
+        shell: pwsh
+        run: |
+          $b = [IO.File]::ReadAllBytes("output/osx-arm64/TestNupkg")[0..3]
+          $magic = ($b | ForEach-Object { $_.ToString('x2') }) -join ''
+          Write-Host "magic=$magic"
+          if ($magic -notmatch '^(cffaedfe|cafebabe)') { throw "Not a Mach-O file (magic=$magic)" }
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: osx-arm64-cross
+          path: output/osx-arm64/TestNupkg
+          if-no-files-found: error
+
+  run_osx_arm64:
+    name: Run cross-built osx-arm64 (macOS)
+    needs: cross_osx_arm64
+    runs-on: macos-latest
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: osx-arm64-cross
+      - name: Run
+        run: |
+          chmod +x TestNupkg
+          ./TestNupkg
+
   validate:
     name: Run linux-x64 binary
     needs: build

@@ -7,6 +7,11 @@
 
 本方案参照 `XWin.Store.*` 模式，将 macOS SDK 打包为 NuGet 包，在非 macOS → osx 交叉编译时自动注入 `-isysroot`。
 
+> **当前状态（2026-10）**
+> - **macOS 主机 → osx 目标（原生）已实现并经 CI 验证**：`src/build/Scripts/SetPath.cs` 对「原生 macOS」跳过自定义工具链（不再走 zig），改用 Apple 原生工具链——因为 **zig 即使在本机也找不到 macOS SDK**（会报 `unable to find system framework "Foundation"`）。CI 的 `macOS` job 已成功构建并运行 `osx-arm64`。
+> - **非 macOS 主机 → osx 目标（交叉）**：即本文档所述方案，**尚未实现**。
+> - 主包版本已与 toolsets 解耦：主包用新增的 `PublishAotCrossVersion`，工具集仍用 `$(Revision)`。下文示例中的版本号按此更新。
+
 ---
 
 ## SDK 来源
@@ -63,6 +68,8 @@ toolsets/MacOSX.SDK/.macosx-sdk-tmp/
     <PackageProjectUrl>https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/MacOSX.SDK</PackageProjectUrl>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- 安装时请求用户接受许可（见文末「安装时确认」一节） -->
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
   </PropertyGroup>
 
   <ItemGroup>
@@ -138,7 +145,8 @@ Write-Host "Next step: dotnet pack toolsets\MacOSX.SDK\MacOSX.SDK.nuproj -o arti
     <XWinVersion Condition="'$(XWinVersion)' == ''">0.10.0</XWinVersion>
     <LLDVersion Condition="'$(LLDVersion)' == ''">23.1.3</LLDVersion>
     <MacOSXSDKVersion Condition="'$(MacOSXSDKVersion)' == ''">26.1</MacOSXSDKVersion>
-    <Revision Condition="'$(Revision)' == ''">6</Revision>
+    <Revision Condition="'$(Revision)' == ''">9</Revision>
+    <PublishAotCrossVersion Condition="'$(PublishAotCrossVersion)' == ''">0.6.0.11</PublishAotCrossVersion>
   </PropertyGroup>
 </Project>
 ```
@@ -232,7 +240,7 @@ No manual action needed after initial SDK download.
 The SDK content itself is subject to Apple's Xcode license terms:
 https://www.apple.com/legal/sla/docs/xcode.pdf
 
-This NuGet packaging metadata is MIT.
+This NuGet packaging metadata is Apache-2.0.
 ```
 
 ---
@@ -277,9 +285,27 @@ dotnet pack src\PublishAotCross.Tools.nuproj -o artifacts --force
 | SDK 来源 | joseluisq/macosx-sdks | 226 stars，活跃更新到 26.1 |
 | 分 arch？ | 不分 | macOS SDK 是 universal（单文件含多架构） |
 | 注入方式 | `-isysroot` | zig cc 的 Clang driver 原生支持 |
-| 注入时机 | 只在 `HostRuntimeIdentifier` 非 osx 时 | macOS host 上 zig 自动用本地 SDK |
+| 注入时机 | 只在 `HostRuntimeIdentifier` 非 osx 时 | 原生 macOS 已改用 Apple 工具链（不入 zig），故仅交叉场景注入 |
 | 合规处理 | 下载脚本显示许可证提示，用户显式确认 | 与 xwin `--accept-license` 同理 |
 | 包版号 | `$(MacOSXSDKVersion).$(Revision)` = `26.1.6` | 与 XWin.Store 和 LLD.Link.Toolsets 格式一致 |
+
+---
+
+## 安装时确认许可（PackageRequireLicenseAcceptance）
+
+可以在 SDK 包的 nuspec 上设置 `PackageRequireLicenseAcceptance=true`，让 **NuGet 客户端在安装时弹出许可确认**：
+
+- **Visual Studio / `nuget.exe install`**：会弹出许可对话框，用户需点击「I Accept」。
+- **`dotnet restore` / `dotnet add package` / CI**：**默认不弹窗**，会静默继续（至多警告）。因此它只是「软」门槛，**不能**作为强制合规手段。
+- 可配合 `PackageLicenseFile`（放 Apple Xcode 许可文本）让确认对话框展示具体条款。
+
+> 结论：若目标只是「让 VS 用户点一下确认」→ 够用；若要**可靠**的授权同意，仍建议「下载脚本 `-AcceptLicense` + 用户显式同意」的模式。
+
+---
+
+## 风险：交叉产物无法直接在 Apple Silicon 上运行
+
+macOS（尤其 Apple Silicon）要求可执行文件至少经过 **ad-hoc 签名**才能运行，而 `codesign` **仅在 macOS 上可用**。zig/lld 能否直接产出 ad-hoc 签名的 Mach-O 需要实测；否则交叉产物需在 macOS 上补 `codesign -s - <binary>`。这直接影响验证清单里「产物在 macOS 上能运行」一条。
 
 ---
 
@@ -292,4 +318,4 @@ dotnet pack src\PublishAotCross.Tools.nuproj -o artifacts --force
 - [ ] `dotnet publish -r osx-arm64` 在 Windows 上成功编译
 - [ ] 产物 `file` 命令输出 `Mach-O 64-bit executable arm64`
 - [ ] 产物在 macOS 上能运行（需实际 macOS 环境验证）
-- [ ] macOS host 上发布 osx 不受影响（不注入 `-isysroot`）
+- [x] macOS host 发布 osx-arm64（原生，走 Apple 工具链，不入 zig）— **已由 CI 验证**
