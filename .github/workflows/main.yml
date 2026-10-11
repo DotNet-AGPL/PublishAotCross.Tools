@@ -7,11 +7,11 @@ name: CI
 # Important constraints
 #   * The XWin.Store.* package content (the filtered Windows SDK/CRT store) is
 #     gitignored and is produced by maintainers with toolsets/download-xwin-store.ps1.
-#     CI therefore CANNOT rebuild XWin.Store.* and validates cross-compilation
-#     against the packages restored from the configured NuGet feeds.
-#   * Consequently the PublishAotCross.Tools version referenced by the test
-#     projects (0.6.0.<Revision>) and the matching XWin.Store.* / LLD.Link.Toolsets.*
-#     versions must already be published for CI to run.
+#     CI therefore CANNOT rebuild the XWin.Store.* / LLD.Link.Toolsets.* packages;
+#     those must already be published, and CI restores them from the feeds.
+#   * The main PublishAotCross.Tools package IS built by CI from source (packed
+#     into the local ./artifacts feed under a synthetic version), so no NuGet
+#     push of the main package is needed to validate changes.
 #
 # Publishing
 #   This workflow does NOT publish packages. Packing and pushing (NuGet.org /
@@ -24,6 +24,10 @@ on:
     branches: [ main, master ]
 
   workflow_dispatch:
+
+env:
+  # CI packs the main package locally and tests THAT (no NuGet push required).
+  LOCAL_PKG_VERSION: 0.0.0-ci
 
 jobs:
   build:
@@ -61,13 +65,21 @@ jobs:
         shell: bash
         run: mkdir -p artifacts
 
+      - name: Pack PublishAotCross.Tools into the local feed
+        shell: bash
+        run: >
+          dotnet pack src/PublishAotCross.Tools.nuproj
+          -c Release -o artifacts --force
+          -p:PublishAotCrossVersion=${{ env.LOCAL_PKG_VERSION }}
+
       - name: Cross-compile
         shell: bash
         run: |
           for rid in ${{ matrix.host.rids }}; do
             echo "::group::publish $rid"
             dotnet publish test/TestPublish/TestNupkg.csproj \
-              -c Release -f net10.0 -r "$rid" -o "output/$rid"
+              -c Release -f net10.0 -r "$rid" -o "output/$rid" \
+              -p:PublishAotCrossVersion=${{ env.LOCAL_PKG_VERSION }}
             echo "::endgroup::"
           done
 
