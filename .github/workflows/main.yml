@@ -39,6 +39,9 @@ jobs:
           - name: Linux
             os: ubuntu-24.04
             rids: linux-x64 linux-arm64
+          - name: macOS
+            os: macos-latest
+            rids: osx-arm64 osx-x64
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -66,6 +69,13 @@ jobs:
               -c Release -f net10.0 -r "$rid" -o "output/$rid"
             echo "::endgroup::"
           done
+
+      - name: Run osx-arm64 binary (macOS only)
+        if: matrix.host.name == 'macOS'
+        shell: bash
+        run: |
+          chmod +x output/osx-arm64/TestNupkg
+          ./output/osx-arm64/TestNupkg
 
       - name: Upload binaries
         uses: actions/upload-artifact@v4
