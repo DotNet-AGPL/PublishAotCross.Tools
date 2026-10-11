@@ -9,7 +9,7 @@
     <Authors>LLVM Project;DotNet-AGPL</Authors>
     <Description>lld-link (LLD COFF linker) for linux-arm64 host platform. MSVC-compatible linker used for NativeAOT cross-compilation.</Description>
     <PackageProjectUrl>https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/LLD.Link.Toolsets.linux-arm64</PackageProjectUrl>
-    <PackageLicenseExpression>MIT OR AGPL-3.0-or-later</PackageLicenseExpression>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <DevelopmentDependency>true</DevelopmentDependency>
   </PropertyGroup>
@@ -19,6 +19,7 @@
     <None Include="build/LLD.Link.Toolsets.linux-arm64.props" Pack="true" PackagePath="buildTransitive" />
     <None Include="README.md" Pack="true" PackagePath="/" />
     <None Include="LICENSE" Pack="true" PackagePath="/" />
+    <None Include="../../NOTICE" Pack="true" PackagePath="/" />
   </ItemGroup>
 
   <UsingTask TaskName="ExtractLldZip" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">

@@ -8,7 +8,7 @@
     <Version>$(XWinVersion).$(Revision)</Version>
     <Description>Windows x64 SDK store (xwin splat output) for NativeAOT cross-compilation</Description>
     <PackageProjectUrl>https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/XWin.Store.x64</PackageProjectUrl>
-    <PackageLicenseExpression>MIT OR AGPL-3.0-or-later</PackageLicenseExpression>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
@@ -16,5 +16,7 @@
     <None Include=".xwin-store-tmp/**/*" Pack="true" PackagePath="tools/.xwin-store" />
     <None Include="build/XWin.Store.x64.props" Pack="true" PackagePath="buildTransitive" />
     <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE" Pack="true" PackagePath="/" />
+    <None Include="../../NOTICE" Pack="true" PackagePath="/" />
   </ItemGroup>
 </Project>

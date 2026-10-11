@@ -26,7 +26,7 @@ toolsets/
 │   ├── LLD.Link.Toolsets.osx-arm64.nuproj
 │   └── tools/lld-link.zip
 ├── LLVM-Source/                        ← 各平台 LLVM 二进制包（提取 lld-link 的来源）
-├── ToolsetsVersion.props                ← XWinVersion=0.10.0, LLDVersion=23.1.3, Revision=8
+├── ToolsetsVersion.props                ← XWinVersion=0.10.0, LLDVersion=23.1.3, Revision=9
 ├── xwin.exe                             ← xwin CLI v$(XWinVersion)（仅供维护者更新 store，不打包进 NuGet）
 ├── download-xwin-store.ps1              ← 下载 xwin SDK store（x64 + arm64 过滤打包到各自平台包）
 └── download-lld-link.ps1                ← 从 LLVM 安装包提取各平台 lld-link（支持 -Linux 参数）
@@ -49,9 +49,9 @@ test/
 
 | 文件                               | 职责                                                                                |
 | ---------------------------------- | ----------------------------------------------------------------------------------- |
-| `src/Crosscompile.targets`       | `CustomAotToolChain=xwin` → xwin 链路；`=zig` → zig 链路                      |
-| `src/Scripts/SetPath.cs`         | 判断宿主/目标平台，设置`CustomAotToolChain`                                       |
-| `toolsets/ToolsetsVersion.props` | `XWinVersion=0.10.0`、`LLDVersion=23.1.3`、`Revision=8` |
+| `src/build/Crosscompile.targets` | `CustomAotToolChain=xwin` → xwin 链路；`=zig` → zig 链路                      |
+| `src/build/Scripts/SetPath.cs`   | 判断宿主/目标平台，设置`CustomAotToolChain`                                       |
+| `toolsets/ToolsetsVersion.props` | `XWinVersion=0.10.0`、`LLDVersion=23.1.3`、`Revision=9` |
 | `win-x64`                        | `dotnet publish -c Release -r win-x64`                                            |
 | `win-arm64`                      | `dotnet publish -c Release -r win-arm64`                                          |
 | `linux-x64`                      | `dotnet publish -c Release -r linux-x64`                                          |

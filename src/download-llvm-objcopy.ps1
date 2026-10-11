@@ -10,4 +10,4 @@ if (Test-Path $llvmArchivePath) {
     Invoke-WebRequest -Uri $downloadUrl -OutFile $llvmArchivePath
 }
 
-7z e $llvmArchivePath "bin/llvm-objcopy.exe" -o"$PSScriptRoot" -r
+7z e $llvmArchivePath "bin/llvm-objcopy.exe" -o"$PSScriptRoot\build" -r

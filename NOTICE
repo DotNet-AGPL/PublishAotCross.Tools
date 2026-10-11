@@ -1,0 +1,39 @@
+PublishAotCross.Tools
+Copyright 2026 DotNet-AGPL
+
+This product includes software developed by third parties, listed below with
+their respective licenses. The Apache-2.0 license applies to the original
+source code of this project; the components below remain under their own
+licenses.
+
+---------------------------------------------------------------------------
+PublishAotCross (upstream project)
+  Copyright (c) Michal Strehovsky
+  Licensed under the MIT License.
+  https://github.com/MichalStrehovsky/PublishAotCross
+
+---------------------------------------------------------------------------
+LLVM / lld (the `lld-link` binaries bundled in the LLD.Link.Toolsets.* packages)
+  Licensed under the Apache License, Version 2.0 with LLVM Exceptions.
+  https://llvm.org/
+  https://llvm.org/foundation/relicensing/
+  Full license text ships with each LLD.Link.Toolsets.* package as `LICENSE`.
+
+---------------------------------------------------------------------------
+Microsoft Windows SDK and Visual C++ Redistributable import libraries
+(the CRT/SDK import libraries bundled in the XWin.Store.* packages)
+  Copyright (c) Microsoft Corporation.
+  Subject to Microsoft's Windows SDK and Visual C++ Redistributable license
+  terms. Provided for build-time linking convenience only.
+  https://learn.microsoft.com/legal/
+
+---------------------------------------------------------------------------
+Zig compiler (provided at build time via the Vezel.Zig.Toolsets NuGet packages)
+  Copyright (c) Zig contributors. Licensed under the MIT License.
+  https://ziglang.org/
+  https://github.com/vezel-dev/zig-toolsets
+
+---------------------------------------------------------------------------
+.NET runtime and Native AOT toolchain
+  Copyright (c) .NET Foundation and Contributors. Licensed under the MIT License.
+  https://github.com/dotnet/runtime

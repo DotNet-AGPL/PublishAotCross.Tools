@@ -5,11 +5,11 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <PackageId>PublishAotCross.Tools</PackageId>
     <Version Condition="'$(Version)' == ''">0.6.0.$(Revision)</Version>
-    <Authors>Michal Strehovsky;Fallenwood</Authors>
+    <Authors>Michal Strehovsky;ThinkXH</Authors>
     <Company>DotNet-AGPL</Company>
     <Description>MSBuild targets to aid in crosscompiling Native AOT publishing.</Description>
     <PackageProjectUrl>https://github.com/DotNet-AGPL/PublishAotCross.Tools</PackageProjectUrl>
-    <PackageLicenseExpression>MIT OR AGPL-3.0-or-later</PackageLicenseExpression>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
@@ -30,27 +30,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="PublishAotCross.Tools.props">
-      <Pack>true</Pack>
-      <PackagePath>build</PackagePath>
-    </None>
+    <None Include="build/**/*" Pack="true" PackagePath="build" />
     <None Include="../toolsets/ToolsetsVersion.props" Link="ToolsetsVersion.props">
-      <Pack>true</Pack>
-      <PackagePath>build</PackagePath>
-    </None>
-    <None Include="PublishAotCross.Tools.targets">
-      <Pack>true</Pack>
-      <PackagePath>build</PackagePath>
-    </None>
-    <None Include="Crosscompile.targets">
-      <Pack>true</Pack>
-      <PackagePath>build</PackagePath>
-    </None>
-    <None Include="clang.cmd">
-      <Pack>true</Pack>
-      <PackagePath>build</PackagePath>
-    </None>
-    <None Include="clang.ps1">
       <Pack>true</Pack>
       <PackagePath>build</PackagePath>
     </None>
@@ -58,25 +39,13 @@
       <Pack>true</Pack>
       <PackagePath>/</PackagePath>
     </None>
-    <None Include="clang">
+    <None Include="../LICENSE">
       <Pack>true</Pack>
-      <PackagePath>build</PackagePath>
+      <PackagePath>/</PackagePath>
     </None>
-    <None Include="gcc">
+    <None Include="../NOTICE">
       <Pack>true</Pack>
-      <PackagePath>build</PackagePath>
-    </None>
-    <None Include="objcopy">
-      <Pack>true</Pack>
-      <PackagePath>build</PackagePath>
-    </None>
-    <None Include="llvm-objcopy.exe">
-      <Pack>true</Pack>
-      <PackagePath>build</PackagePath>
-    </None>
-    <None Include="Scripts/SetPath.cs">
-      <Pack>true</Pack>
-      <PackagePath>build/Scripts/SetPath.cs</PackagePath>
+      <PackagePath>/</PackagePath>
     </None>
   </ItemGroup>
 </Project>

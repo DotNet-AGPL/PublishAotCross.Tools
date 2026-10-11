@@ -4,7 +4,7 @@
 **/.xwin-cache
 **/.xwin-store
 **/.xwin-store-tmp/
-src/*.exe
+src/build/*.exe
 **.csproj.user
 .vs/**
 **.pubxml

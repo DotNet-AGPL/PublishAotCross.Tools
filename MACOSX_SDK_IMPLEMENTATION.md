@@ -61,7 +61,7 @@ toolsets/MacOSX.SDK/.macosx-sdk-tmp/
     <Version>$(MacOSXSDKVersion).$(Revision)</Version>
     <Description>macOS SDK $(MacOSXSDKVersion) (from joseluisq/macosx-sdks) for cross-compiling NativeAOT to macOS from non-macOS hosts</Description>
     <PackageProjectUrl>https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/MacOSX.SDK</PackageProjectUrl>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
@@ -143,7 +143,7 @@ Write-Host "Next step: dotnet pack toolsets\MacOSX.SDK\MacOSX.SDK.nuproj -o arti
 </Project>
 ```
 
-### 步骤 6：修改 `src/Crosscompile.targets` — 注入 `-isysroot`
+### 步骤 6：修改 `src/build/Crosscompile.targets` — 注入 `-isysroot`
 
 在 `OverwriteTargetTriple` target 的 zig 部分追加两个修改：
 

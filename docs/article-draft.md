@@ -249,7 +249,7 @@ jobs:
 
 ## 九、开源与社区
 
-PublishAotCross.Tools 基于 MIT / AGPL-3.0-or-later 双许可开源，你可以自由选择遵循哪个许可使用。
+PublishAotCross.Tools 基于 Apache-2.0 许可开源，可自由用于商业与闭源项目。
 
 - GitHub 仓库：`DotNet-AGPL/PublishAotCross.Tools`（https://github.com/DotNet-AGPL/PublishAotCross.Tools）
 - 通过 NuGet 安装：`dotnet add package PublishAotCross.Tools`

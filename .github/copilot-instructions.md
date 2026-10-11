@@ -1,103 +1,96 @@
-# GitHub Copilot Instructions for PublishAotCross
+# GitHub Copilot Instructions
 
 ## Project Overview
 
-This project is aimed to build .NET projects with Zig as C compiler to enable cross-platform NativeAOT support.
+**PublishAotCross.Tools** is a NuGet package with MSBuild targets that enable
+cross-OS [Native AOT](https://learn.microsoft.com/dotnet/core/deploying/native-aot/)
+publishing for .NET. It works around Microsoft's native restriction:
 
-PublishAotCross is a NuGet package with MSBuild targets that helps resolve cross-OS native compilation errors when using PublishAOT. It enables cross-compilation using:
-- [Zig](https://ziglang.org/) as the linker/sysroot for Linux targets (x64/arm64, GNU/MUSL)
-- [xwin](https://github.com/Jake-Shadle/xwin) for Windows targets from Linux machines
-
-## Development Workflow
-
-### Build Commands
-```bash
-dotnet build test/Hello.csproj
-dotnet build test/Hello9.csproj
-dotnet build test/Hello10.csproj
+```
+error : Cross-OS native compilation is not supported.
 ```
 
-### Testing Cross-Compilation
-```bash
-# Test with Zig (requires Zig installation)
-dotnet publish -r linux-x64 -c Release test/Hello.csproj -p:StripSymbols=false
+by supplying self-contained toolchains for two scenarios:
 
-# Test with external Zig
-dotnet publish -r linux-x64 /p:PublishAot=true /p:AotPreferCustom=true /p:UseExternalZig=true
-```
+| Toolchain (`CustomAotToolChain`) | Targets | Mechanism |
+| --- | --- | --- |
+| **`zig`** | `linux-x64`, `linux-arm64`, `linux-musl-*`, `osx-*` | [Zig](https://ziglang.org/) as linker/sysroot; `clang`/`gcc`/`objcopy` are Zig wrappers |
+| **`xwin`** | `win-x64`, `win-arm64` | Windows SDK store (xwin) + bundled `lld-link` + Zig as C compiler |
 
-### Required Before Each Commit
-- Ensure code builds successfully with both test projects
-- Run cross-compilation tests if making changes to core functionality
-- Follow the established code formatting and style conventions
-- Verify MSBuild targets work correctly
-- Test shell scripts (`src/gcc`, `src/clang`) if modified
+The toolchain is selected automatically at build time by
+`src/build/Scripts/SetPath.cs` (an MSBuild `RoslynCodeTaskFactory` inline task),
+based on host OS/arch, target RID, and the `AotPreferCustom` property
+(default `true`).
 
 ## Repository Structure
 
-- **`src/`** - Main source code
-  - `Fallenwood.PublishAotCross.targets` - Main MSBuild targets file
-  - `Crosscompile.targets` - Cross-compilation logic
-  - `Fallenwood.PublishAotCross.nuproj` - NuGet package project
-  - `gcc`, `clang`, `clang.cmd` - Wrapper scripts for Zig compiler
-  - `objcopy` - LLVM objcopy wrapper
-- **`test/`** - Test projects
-  - `Hello.csproj` - .NET 8.0 test project
-  - `Hello9.csproj` - .NET 9.0 test project
-  - `Hello10.csproj` - .NET 10.0 test project
-  - `Program.cs` - Simple Hello World test program
+```
+src/
+├── PublishAotCross.Tools.nuproj     Main NuGet package project
+├── download-llvm-objcopy.ps1        Maintainer helper (not packed)
+└── build/                           ⚠️ mirrors the nupkg "build/" folder 1:1
+    ├── PublishAotCross.Tools.props  Auto-imported (NuGet convention)
+    ├── PublishAotCross.Tools.targets
+    ├── Crosscompile.targets         Core xwin/zig toolchain logic
+    ├── clang / clang.cmd / clang.ps1  Zig wrapper (posix/Windows)
+    ├── gcc / objcopy                Zig wrapper / llvm-objcopy wrapper
+    ├── llvm-objcopy.exe             Symbol stripping helper (gitignored)
+    └── Scripts/SetPath.cs           Host/target detection, sets CustomAotToolChain
 
-## Code Standards and Guidelines
+toolsets/                            Platform helper packages (referenced by main package)
+├── ToolsetsVersion.props            ZigVersion=0.17.0.1, XWinVersion=0.10.0,
+│                                    LLDVersion=23.1.3, Revision=9
+├── XWin.Store.x64 / arm64           Filtered Windows SDK/CRT store (content gitignored)
+├── LLD.Link.Toolsets.*              lld-link binaries (win-x64/arm64, linux-x64/arm64, osx-arm64)
+├── download-xwin-store.ps1          Regenerate the Windows SDK store (admin + network)
+└── download-lld-link.ps1            Re-extract lld-link from LLVM release archives
 
-### C# Best Practices
-1. **Respect existing code format style** - Follow the patterns already established in the codebase
-2. **Use latest C# and .NET features** - Leverage modern C# idioms and patterns when appropriate
-3. **Maintain existing code structure** - Preserve the established project organization and architecture
+test/
+├── TestPublish/TestNupkg.csproj     Cross-compilation validation (net8/9/10, multi-RID)
+└── ConsoleApp/ConsoleApp.csproj     Console cross-compilation sample
 
-### MSBuild and NuGet Guidelines
-1. **Target compatibility** - Ensure compatibility with both .NET 8.0 and 9.0+
-2. **Cross-platform support** - Maintain support for Windows, Linux, and cross-compilation scenarios
-3. **Minimal dependencies** - Keep external dependencies to a minimum
-4. **Clear property names** - Use descriptive MSBuild property names that follow existing conventions
+.github/workflows/main.yml           CI (cross-compile + validate; manual release)
+```
 
-### Shell Script Guidelines
-1. **POSIX compliance** - Bash scripts should work across different Unix-like systems
-2. **Windows compatibility** - Maintain corresponding `.cmd` files for Windows
-3. **Error handling** - Include proper error checking and informative error messages
-4. **Zig integration** - Ensure proper parameter translation for Zig compiler
+## Build & Test Commands
 
-## Key Integration Points
+```bash
+# Pack the main package (from ./artifacts, which is also a local NuGet feed)
+dotnet pack src/PublishAotCross.Tools.nuproj -o artifacts --force
 
-### MSBuild Integration
-- The package integrates through `Fallenwood.PublishAotCross.targets`
-- Automatically detects cross-compilation scenarios
-- Provides custom compiler paths and settings
+# Pack all toolset packages
+bash pack_toolsets.sh all        # or: cmd /c pack_toolsets.bat all
 
-### Zig Compiler Wrapper
-- Shell scripts (`gcc`, `clang`) wrap Zig compiler calls
-- Handle parameter translation and workarounds for .NET-specific requirements
-- Support both bundled Zig (via Vezel.Zig.Toolsets) and external Zig installations
+# Cross-compile the validation project.
+# NOTE: TestNupkg is multi-target (net8.0;net9.0;net10.0) — you MUST pass -f.
+dotnet publish test/TestPublish/TestNupkg.csproj -c Release -f net10.0 -r linux-x64
+dotnet publish test/TestPublish/TestNupkg.csproj -c Release -f net10.0 -r win-arm64
+```
 
-### Supported Target Platforms
-- Linux: x64, arm64 (both GNU and MUSL variants)
-- Windows: x64, arm64 (via xwin on Linux hosts)
-- Cross-compilation from Windows/Linux to various target platforms
+## Key Facts & Conventions
 
-## Common Development Scenarios
+- **License:** Apache-2.0 (`LICENSE` + `NOTICE`; `PackageLicenseExpression=Apache-2.0`).
+- **Packaging layout:** `src/build/**` maps to the package's `build/` folder.
+  Files there are packed flat via `<None Include="build/**/*" Pack="true" PackagePath="build" />`.
+  `SetPath.cs` prepends the package's `build/` directory to `PATH`, so the
+  `clang`/`gcc`/`objcopy` wrappers must remain flat in `build/` (do not move them
+  into a subfolder inside the package).
+- **Path references:** `Crosscompile.targets` loads
+  `$(MSBuildThisFileDirectory)/Scripts/SetPath.cs` — keep them co-located.
+- **Multi-target publish:** any project with `TargetFrameworks` (plural) requires
+  `-f <tfm>` for `dotnet publish`.
+- **Package versions:** the main package is `0.6.0.$(Revision)`; toolset packages
+  are `$(XWinVersion).$(Revision)` / `$(LLDVersion).$(Revision)`.
+- **XWin.Store content is gitignored** — it can only be (re)generated by a
+  maintainer with admin rights and network access.
 
-### Adding New Target Platform Support
-1. Update `Crosscompile.targets` with new RID detection logic
-2. Add appropriate compiler flag translations in wrapper scripts
-3. Update documentation and test scenarios
-4. Verify in CI pipeline
+## Guidelines
 
-### Modifying Compiler Wrappers
-1. Test both Unix (bash) and Windows (cmd) versions
-2. Ensure parameter translation maintains compatibility
-3. Test with various .NET project configurations
-4. Validate cross-compilation still works
-
-### Updating Dependencies
-1. Test with different Zig versions when updating Vezel.Zig.Toolsets
-2. Verify xwin compatibility for Windows cross-compilation
-3. Ensure .NET SDK compatibility across supported versions
+- Keep changes consistent with existing MSBuild/targets patterns.
+- When touching `Crosscompile.targets` or `SetPath.cs`, verify both toolchains
+  (zig for linux/macos targets, xwin for Windows targets).
+- Shell wrappers must stay POSIX-compatible (`clang`, `gcc`, `objcopy`) with a
+  matching Windows path (`clang.cmd` + `clang.ps1`).
+- Update `toolsets/ToolsetsVersion.props` when bumping dependency versions, and
+  bump `Revision` whenever republishing packages.
+- Do not commit secrets (`note.txt`, `.env`, API keys) — they are gitignored.

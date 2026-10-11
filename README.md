@@ -1,7 +1,7 @@
 PublishAotCross
 ---
 
-[![License](docs/badge-license.svg)](LICENSE.TXT)
+[![License](docs/badge-license.svg)](LICENSE)
 
 Forked from [MichalStrehovsky/PublishAotCross](https://github.com/MichalStrehovsky/PublishAotCross "")
 

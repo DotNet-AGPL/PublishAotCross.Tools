@@ -11,7 +11,7 @@ Bundled in NuGet package - no manual installation required.
 **Contents:**
 - `tools/lld-link` — LLVM LLD COFF linker (MSVC-compatible)
 
-**License:** MIT (lld-link binary is Apache-2.0 WITH LLVM-exception, see LICENSE)
+**License:** Apache-2.0 (lld-link binary: Apache-2.0 WITH LLVM-exception, see LICENSE)
 
 ## MSBuild Integration
 

@@ -7,7 +7,7 @@ if (!UseExternalZig) {
 var buildenv = "";
 var isHostWindows = false;
 var isTargetingWindows = RuntimeIdentifier.StartsWith("win");
-var isDebug = Environment.GetEnvironmentVariable("DOTNET_FALLENWOOD_PUBLISHAOTCROSS") == bool.TrueString;
+var isDebug = Environment.GetEnvironmentVariable("DOTNET_PUBLISHAOTCROSS") == bool.TrueString;
 
 if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) {
   var osDescription = RuntimeInformation.OSDescription;

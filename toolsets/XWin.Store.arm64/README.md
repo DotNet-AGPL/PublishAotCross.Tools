@@ -8,7 +8,7 @@ Used by `PublishAotCross.Tools`. No manual download required.
 
 **Source:** https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/XWin.Store.arm64
 
-**License:** MIT
+**License:** Apache-2.0
 
 ## MSBuild Integration
 

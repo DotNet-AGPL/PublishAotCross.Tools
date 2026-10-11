@@ -1,32 +1,48 @@
 name: CI
 
-# Notes:
-#   The XWin.Store.* packages are built by maintainers from a local xwin SDK
-#   store (see toolsets/download-xwin-store.ps1). Their content is gitignored,
-#   so CI cannot rebuild them. This workflow therefore validates cross-compilation
-#   against the packages restored from the configured NuGet feeds.
+# ---------------------------------------------------------------------------
+# Scope
+#   Cross-compilation validation for PublishAotCross.Tools.
 #
-#   Run the release job manually (workflow_dispatch with a version) after the
-#   XWin.Store.* / LLD.Link.Toolsets.* packages for the current revision have
-#   been published.
+# Important constraints
+#   * The XWin.Store.* package content (the filtered Windows SDK/CRT store) is
+#     gitignored and is produced by maintainers with toolsets/download-xwin-store.ps1.
+#     CI therefore CANNOT rebuild XWin.Store.* and validates cross-compilation
+#     against the packages restored from the configured NuGet feeds.
+#   * Consequently the PublishAotCross.Tools version referenced by the test
+#     projects (0.6.0.<Revision>) and the matching XWin.Store.* / LLD.Link.Toolsets.*
+#     versions must already be published for CI to run.
+#
+# Publishing
+#   This workflow does NOT publish packages. Packing and pushing (NuGet.org /
+#   GitHub Packages) is done manually by maintainers, once the toolset packages
+#   for the current revision are available.
+# ---------------------------------------------------------------------------
 
 on:
   pull_request:
-    branches: [ master ]
+    branches: [ main, master ]
 
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release version to create'
-        required: false
 
 jobs:
-  cross_compile_windows:
-    runs-on: windows-latest
-    name: Cross-compile (Windows host)
+  build:
+    name: Cross-compile (${{ matrix.host.name }})
+    runs-on: ${{ matrix.host.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        host:
+          - name: Windows
+            os: windows-latest
+            rids: win-x64 win-arm64
+          - name: Linux
+            os: ubuntu-24.04
+            rids: linux-x64 linux-arm64
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -35,74 +51,34 @@ jobs:
             9.0.x
             10.0.x
 
-      - name: Cross-compile win-x64 and win-arm64
+      - name: Cross-compile
+        shell: bash
         run: |
-          dotnet publish test/TestPublish/TestNupkg.csproj -c Release -r win-x64 -o output/win-x64
-          dotnet publish test/TestPublish/TestNupkg.csproj -c Release -r win-arm64 -o output/win-arm64
+          for rid in ${{ matrix.host.rids }}; do
+            echo "::group::publish $rid"
+            dotnet publish test/TestPublish/TestNupkg.csproj \
+              -c Release -f net10.0 -r "$rid" -o "output/$rid"
+            echo "::endgroup::"
+          done
 
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
-          name: win-binaries
+          name: ${{ matrix.host.name }}-binaries
           path: output/**
+          if-no-files-found: error
 
-  cross_compile_linux:
-    runs-on: ubuntu-24.04
-    name: Cross-compile (Linux host)
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: |
-            8.0.x
-            9.0.x
-            10.0.x
-
-      - name: Cross-compile linux-x64 and linux-arm64
-        run: |
-          dotnet publish test/TestPublish/TestNupkg.csproj -c Release -r linux-x64 -o output/linux-x64
-          dotnet publish test/TestPublish/TestNupkg.csproj -c Release -r linux-arm64 -o output/linux-arm64
-
-      - name: Upload binaries
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-binaries
-          path: output/**
-
-  validate_linux:
-    needs: cross_compile_linux
+  validate:
+    name: Run linux-x64 binary
+    needs: build
     runs-on: ubuntu-latest
-    name: Validate linux-x64 binary
     steps:
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:
-          name: linux-binaries
+          name: Linux-binaries
+
       - name: Run
         run: |
           chmod +x linux-x64/TestNupkg
           ./linux-x64/TestNupkg
-
-  release:
-    needs: [ cross_compile_windows, cross_compile_linux ]
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version != '' }}
-    runs-on: ubuntu-latest
-    name: Pack and publish
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
-
-      - name: Pack
-        run: dotnet pack src/PublishAotCross.Tools.nuproj -c Release -o artifacts --force -p:Version=${{ github.event.inputs.version }}
-
-      - name: Push to GitHub package registry
-        run: dotnet nuget push artifacts/*.nupkg --api-key ${{ secrets.GITHUB_TOKEN }} --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
-
-      - name: Push to NuGet.org
-        run: dotnet nuget push artifacts/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json

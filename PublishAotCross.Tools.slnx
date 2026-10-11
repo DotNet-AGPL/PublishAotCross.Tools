@@ -1,13 +1,15 @@
 <Solution>
   <Folder Name="/src/">
-    <File Path="src/Crosscompile.targets" />
     <File Path="src/download-llvm-objcopy.ps1" />
     <File Path="src/PublishAotCross.Tools.nuproj" />
-    <File Path="src/PublishAotCross.Tools.props" />
-    <File Path="src/PublishAotCross.Tools.targets" />
   </Folder>
-  <Folder Name="/src/Scripts/">
-    <File Path="src/Scripts/SetPath.cs" />
+  <Folder Name="/src/build/">
+    <File Path="src/build/Crosscompile.targets" />
+    <File Path="src/build/PublishAotCross.Tools.props" />
+    <File Path="src/build/PublishAotCross.Tools.targets" />
+  </Folder>
+  <Folder Name="/src/build/Scripts/">
+    <File Path="src/build/Scripts/SetPath.cs" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/ConsoleApp/ConsoleApp.csproj" />
@@ -15,7 +17,8 @@
   </Folder>
   <Folder Name="/.md/">
     <File Path="AGENTS.md" />
-    <File Path="LICENSE.TXT" />
+    <File Path="LICENSE" />
+    <File Path="NOTICE" />
     <File Path="NuGet.Config" />
     <File Path="pack_src.bat" />
     <File Path="pack_src.sh" />
