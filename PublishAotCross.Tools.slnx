@@ -12,6 +12,7 @@
     <File Path="src/build/Scripts/SetPath.cs" />
   </Folder>
   <Folder Name="/test/">
+    <Project Path="test/AvaloniaApp/AvaloniaApp.csproj" Id="e1de9308-27f5-4902-850d-4a5204dc7753" />
     <Project Path="test/ConsoleApp/ConsoleApp.csproj" />
     <Project Path="test/TestPublish/TestNupkg.csproj" />
   </Folder>

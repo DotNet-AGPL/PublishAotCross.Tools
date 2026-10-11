@@ -13,7 +13,6 @@
 
   <PropertyGroup>
     <DebugType>none</DebugType>
-    <StripSymbols>false</StripSymbols>
   </PropertyGroup>
 
   <PropertyGroup>

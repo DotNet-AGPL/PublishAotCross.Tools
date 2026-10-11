@@ -72,6 +72,14 @@ System/Library/Frameworks/{CoreFoundation,Foundation,Security,Network,GSS,Crypto
 <PackageReference Include="MacOSX.SDK" Version="$(MacOSXSDKVersion).$(Revision)" />
 ```
 
+### 4b. `StripSymbols` 条件默认（`Crosscompile.targets`）
+交叉到 macOS（非 macOS 宿主）时，ILCompiler 会调用 macOS 专属的 `dsymutil`/`strip` → 自动默认关闭符号剥离：
+```xml
+<_IsCrossCompilingToMacOS Condition="$(RuntimeIdentifier.StartsWith('osx')) and !$(HostRuntimeIdentifier.StartsWith('osx'))">true</_IsCrossCompilingToMacOS>
+<StripSymbols Condition="'$(StripSymbols)' == '' and '$(_IsCrossCompilingToMacOS)' == 'true'">false</StripSymbols>
+```
+其它场景（win→linux 等）保持原生默认（Linux 目标用 `llvm-objcopy`，包内已内置）。
+
 ### 5. `src/build/Crosscompile.targets`
 ```xml
 <!-- 顶部：SDK 目录（属性优先，回退到 MACOSX_SDK 环境变量） -->
