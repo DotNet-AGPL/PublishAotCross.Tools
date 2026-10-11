@@ -17,7 +17,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="PublishAotCross.Tools" Version="0.6.0.$(Revision)" />
+    <PackageReference Include="PublishAotCross.Tools" Version="$(PublishAotCrossVersion)" />
   </ItemGroup>
 
 </Project>

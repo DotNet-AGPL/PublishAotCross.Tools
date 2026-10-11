@@ -4,7 +4,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <PackageId>PublishAotCross.Tools</PackageId>
-    <Version Condition="'$(Version)' == ''">0.6.0.$(Revision)</Version>
+    <Version Condition="'$(Version)' == ''">$(PublishAotCrossVersion)</Version>
     <Authors>Michal Strehovsky;ThinkXH</Authors>
     <Company>DotNet-AGPL</Company>
     <Description>MSBuild targets to aid in crosscompiling Native AOT publishing.</Description>

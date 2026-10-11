@@ -1,0 +1,15 @@
+# Line-ending policy.
+#
+# The toolchain shims without an extension are POSIX shell scripts executed on
+# Linux/macOS. They MUST be checked out with LF, otherwise "/usr/bin/env bash\r"
+# fails on Unix (exit code 127). Windows host uses clang.cmd/clang.ps1 instead.
+/src/build/clang    text eol=lf
+/src/build/gcc      text eol=lf
+/src/build/objcopy  text eol=lf
+
+# Shell scripts
+*.sh text eol=lf
+
+# Windows scripts
+*.cmd text eol=crlf
+*.bat text eol=crlf
