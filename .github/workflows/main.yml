@@ -5,18 +5,16 @@ name: CI
 #   Cross-compilation validation for PublishAotCross.Tools.
 #
 # Important constraints
-#   * The XWin.Store.* package content (the filtered Windows SDK/CRT store) is
-#     gitignored and is produced by maintainers with toolsets/download-xwin-store.ps1.
-#     CI therefore CANNOT rebuild the XWin.Store.* / LLD.Link.Toolsets.* packages;
-#     those must already be published, and CI restores them from the feeds.
-#   * The main PublishAotCross.Tools package IS built by CI from source (packed
-#     into the local ./artifacts feed under a synthetic version), so no NuGet
-#     push of the main package is needed to validate changes.
+#   * The XWin.Store.* / LLD.Link.Toolsets.* package contents are gitignored and
+#     produced by maintainers, so CI REBUILDS only the MacOSX.SDK package (from a
+#     downloaded SDK) and the main package; the others are restored from the feeds.
+#   * The main PublishAotCross.Tools package is built by CI from source (packed
+#     into the local ./artifacts feed under a synthetic version), so no NuGet push
+#     is needed to validate changes.
 #
 # Publishing
 #   This workflow does NOT publish packages. Packing and pushing (NuGet.org /
-#   GitHub Packages) is done manually by maintainers, once the toolset packages
-#   for the current revision are available.
+#   GitHub Packages) is done manually by maintainers.
 # ---------------------------------------------------------------------------
 
 on:
@@ -30,8 +28,37 @@ env:
   LOCAL_PKG_VERSION: 0.0.0-ci
 
 jobs:
+  # Build the MacOSX.SDK package once and share it with the jobs that need it.
+  sdk:
+    name: Build MacOSX.SDK
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Fetch and filter the macOS SDK
+        shell: pwsh
+        run: ./toolsets/download-macosx-sdk.ps1 -AcceptLicense
+
+      - name: Pack MacOSX.SDK
+        shell: pwsh
+        run: dotnet pack toolsets/MacOSX.SDK/MacOSX.SDK.nuproj -c Release -o artifacts --force
+
+      - name: Upload MacOSX.SDK package
+        uses: actions/upload-artifact@v4
+        with:
+          name: macosx-sdk-nupkg
+          path: artifacts/MacOSX.SDK.*.nupkg
+          if-no-files-found: error
+
   build:
     name: Cross-compile (${{ matrix.host.name }})
+    needs: sdk
     runs-on: ${{ matrix.host.os }}
     strategy:
       fail-fast: false
@@ -64,6 +91,12 @@ jobs:
       - name: Create local NuGet feed folder
         shell: bash
         run: mkdir -p artifacts
+
+      - name: Download MacOSX.SDK into the local feed
+        uses: actions/download-artifact@v4
+        with:
+          name: macosx-sdk-nupkg
+          path: artifacts
 
       - name: Pack PublishAotCross.Tools into the local feed
         shell: bash
@@ -98,9 +131,10 @@ jobs:
           if-no-files-found: error
 
   # Cross-compile osx-arm64 from a Windows host. The macOS SDK subset is provided
-  # automatically by the MacOSX.SDK package (built locally here; no NuGet push).
+  # automatically by the MacOSX.SDK package (built by the "sdk" job; no NuGet push).
   cross_osx_arm64:
     name: Cross-compile osx-arm64 (Windows host)
+    needs: sdk
     runs-on: windows-latest
     steps:
       - name: Checkout repo
@@ -118,13 +152,11 @@ jobs:
         shell: bash
         run: mkdir -p artifacts
 
-      - name: Fetch and filter the macOS SDK
-        shell: pwsh
-        run: ./toolsets/download-macosx-sdk.ps1 -AcceptLicense
-
-      - name: Pack MacOSX.SDK into the local feed
-        shell: pwsh
-        run: dotnet pack toolsets/MacOSX.SDK/MacOSX.SDK.nuproj -c Release -o artifacts --force
+      - name: Download MacOSX.SDK into the local feed
+        uses: actions/download-artifact@v4
+        with:
+          name: macosx-sdk-nupkg
+          path: artifacts
 
       - name: Pack PublishAotCross.Tools into the local feed
         shell: bash

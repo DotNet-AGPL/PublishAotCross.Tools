@@ -92,3 +92,7 @@ $sz = (Get-ChildItem $StoreTmp -Recurse -File | Measure-Object -Property Length 
 Write-Host "Done. Filtered SDK at $StoreTmp ($([math]::Round($sz/1MB,0)) MB)"
 Write-Host ""
 Write-Host "Next: dotnet pack toolsets\MacOSX.SDK\MacOSX.SDK.nuproj -o artifacts --force"
+
+# robocopy returns 1 ("files copied") which PowerShell would otherwise surface as
+# a failing exit code.
+exit 0
