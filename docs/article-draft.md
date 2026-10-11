@@ -53,6 +53,32 @@ error : Cross-OS native compilation is not supported.
 
 一切工具链都随 NuGet 包自动就位。
 
+```mermaid
+flowchart LR
+    subgraph HOSTS["构建机（任选一台）"]
+        W["Windows x64"]
+        L["Linux x64 / arm64"]
+        M["macOS arm64"]
+    end
+
+    T["PublishAotCross.Tools<br/>dotnet publish -r &lt;rid&gt;"]
+
+    subgraph TARGETS["Native AOT 产物"]
+        TW["Windows<br/>x64 / arm64"]
+        TL["Linux glibc<br/>x64 / arm64"]
+        TM["Linux musl<br/>x64 / arm64"]
+        TO["macOS arm64"]
+    end
+
+    W --> T
+    L --> T
+    M --> T
+    T --> TW
+    T --> TL
+    T --> TM
+    T --> TO
+```
+
 ## 五、3 分钟上手
 
 ### 第 1 步：加一个包引用
