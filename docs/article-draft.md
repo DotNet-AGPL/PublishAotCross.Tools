@@ -1,8 +1,8 @@
-# .NET Native AOT 跨平台编译指南：从一台机器到全平台构建
+# 一条命令构建全平台：.NET Native AOT 跨平台编译指南
 
-## 一、一个 CI 场景的痛点
+## 一、痛点：一行红字拦住了整个发布流程
 
-假设你正在用 Windows 开发一个 .NET 服务，开启了 Native AOT 编译以获得最佳性能和单文件部署。需求来了：要同时发布 Windows x64、Windows arm64、Linux x64、Linux arm64、Alpine Linux (MUSL)，甚至 macOS（Apple Silicon）的二进制。
+你用 .NET 写了个服务，开启了 Native AOT，想要极致启动速度和单文件部署。现在要把产物发到多个平台：Windows、Linux，还有 macOS。
 
 于是你在 CI 里写下：
 
@@ -10,66 +10,54 @@
 dotnet publish -c Release -r linux-x64
 ```
 
-然后看到这行红字：
+结果迎面一行红字：
 
 ```
 error : Cross-OS native compilation is not supported.
 ```
 
-Native AOT 的优势再大，跨平台这道坎过不去也是白搭。你要么为每个平台准备独立的构建机，要么花时间折腾交叉编译工具链。如果你也遇到过这个问题，这篇文章就是为你准备的。
+翻文档才知道：Native AOT 依赖每个操作系统的原生链接器，微软官方**只支持同平台构建**——Windows 上只能构建 Windows，Linux 上只能构建 Linux。想跨平台？要么为每个平台准备一台构建机，要么自己折腾交叉编译工具链。
 
-## 二、Native AOT 的甜蜜与陷阱
+如果你也被这个问题卡过，这篇文章就是为你准备的。
 
-.NET Native AOT（Ahead-of-Time Compilation）是 .NET 生态近年最重要的能力之一。它把 IL 代码提前编译成本地机器码，带来几个硬核好处：
+## 二、为什么 Native AOT 值得你忍受这些
+
+先说为什么大家还是想用 Native AOT：
 
 - **启动极快**：无需 JIT 预热，毫秒级启动
 - **内存更低**：没有 JIT 堆和运行时元数据
-- **单文件部署**：一个 exe/elf，自包含无需运行时
-- **体积更小**：裁剪未使用的代码，发布产物最小化
+- **单文件部署**：一个本机可执行文件，自包含、无需安装运行时
+- **体积更小**：未使用的代码被裁剪掉
 
-但 Native AOT 有一个先天性短板 ——**它依赖操作系统的原生链接器**：
+代价就是开头那个报错：它的跨平台能力先天不足。
 
-- Windows 需要 MSVC 链接器（Visual Studio C++ 工具链）
-- Linux 需要 ld / mold 以及 glibc 或 musl 的 sysroot
-- macOS 需要 Xcode 的 ld64 **和 macOS SDK**
+## 三、你可能试过的办法，以及它们的问题
 
-微软官方只支持**同平台构建**（Windows 上构建 Windows，Linux 上构建 Linux）。一旦试图跨平台，就会直接报错中止。
+**装 Visual Studio C++ 工具链**：只能在 Windows 上用，安装包 5GB+，CI 里装它最重。
 
-## 三、现有方案为什么不够好
+**用 Docker 交叉构建**：配置繁琐、每次拉镜像、不适合 Windows 目标，也搞不定 macOS。
 
-为了解决这个问题，社区想了不少办法：
+**手动配置交叉编译工具链**：能行，但要自己下载编译器、配环境变量、管版本，CI 里还得维护一堆脚本。
 
-**方案一：安装 Visual Studio C++ 工具链**
+共同点：**都不够"开箱即用"**。
 
-- 只能在 Windows 上用
-- 安装包超过 5GB，arm64 交叉编译支持有限
-- CI 里装 VS 是最重的依赖
+## 四、解药：PublishAotCross.Tools
 
-**方案二：Docker 交叉构建**
+`PublishAotCross.Tools` 是一个 NuGet 包。加上它，你就能**在一台机器上，用自己的 `dotnet publish`，直接产出所有目标平台的 Native AOT 二进制**。
 
-- 需要 Docker，Linux 容器配置繁琐
-- 每次构建拉镜像，CI 时间长
-- 不适合 Windows 目标，更无法产出 macOS 目标
+- 不用装 Visual Studio
+- 不用装 extra 编译器
+- 不用 Docker
+- 不用管理员权限
+- 甚至**不用 Mac**，也能产出 macOS（Apple Silicon）的产物
 
-**方案三：手动配置交叉编译工具链**
-
-- 灵活但繁琐：需自行下载编译工具、配置环境变量、管理版本
-- macOS 目标还要处理 Apple SDK 的获取与注入
-- 在 CI 里需要额外脚本维护
-
-这些方案有一个共同问题：**不够"开箱即用"**。
-
-## 四、PublishAotCross.Tools 的解法
-
-PublishAotCross.Tools 是一个 MSBuild 扩展 NuGet 包，它做的事情非常简单直白：**在 `dotnet publish` 时替换掉原生的链接器工具链，让你从任何平台构建任何平台**。
-
-它不仅覆盖 Windows / Linux 目标，**现在也能从 Windows / Linux 直接交叉编译出 macOS（Apple Silicon）产物——不需要任何 Mac 机器**。
+一切工具链都随 NuGet 包自动就位。
 
 ## 五、3 分钟上手
 
-### 步骤 1：添加 NuGet 引用
+### 第 1 步：加一个包引用
 
-在已开启 Native AOT 的项目中：
+在已经开启 Native AOT 的项目里：
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -92,111 +80,52 @@ PublishAotCross.Tools 是一个 MSBuild 扩展 NuGet 包，它做的事情非常
 </Project>
 ```
 
-> 支持 `.NET 8+`（`net8.0`、`net9.0`、`net10.0` 均已验证），`<TargetFramework>` 按实际项目框架配置即可。
->
-> `<DebugType>none</DebugType>` 和 `<StripSymbols>false</StripSymbols>` 是推荐搭配，这样发布的二进制已经足够精简，无需额外剥离符号的工具。
+支持 `.NET 8 / 9 / 10`，`<TargetFramework>` 按你的项目填即可。
+`<DebugType>none</DebugType>` + `<StripSymbols>false</StripSymbols>` 是推荐搭配，发布产物本身就很精简。
 
-### 步骤 2：一条命令构建
+### 第 2 步：想构建哪个平台，就敲哪条命令
 
 ```bash
-# Windows 目标（无需 Visual Studio！）
+# Windows（无需 Visual Studio）
 dotnet publish -c Release -r win-x64
 dotnet publish -c Release -r win-arm64
 
-# Linux GNU 目标
+# Linux（glibc）
 dotnet publish -c Release -r linux-x64
 dotnet publish -c Release -r linux-arm64
 
-# Linux MUSL（Alpine）目标
+# Linux（musl / Alpine）
 dotnet publish -c Release -r linux-musl-x64
 dotnet publish -c Release -r linux-musl-arm64
 
-# macOS（Apple Silicon）目标 —— 不需要 Mac！
+# macOS（Apple Silicon）—— 不需要 Mac
 dotnet publish -c Release -r osx-arm64
 ```
 
-所有命令在本机执行，无需切换操作系统、无需安装交叉工具链、无需管理员权限。
+就这些。全部在本机完成，不用切系统、不用装工具链。
 
-> **跨平台亮点**：这些命令不仅适用于 Windows 宿主。在 Linux 或 macOS 机器上执行 `dotnet publish -r win-x64` 同样可以直接产出 Windows 二进制；甚至 `dotnet publish -r osx-arm64` 也能在 Windows / Linux 上直接产出可在 Apple Silicon 运行的二进制。
+> 这些命令在 Windows、Linux、macOS 上任一宿主都能跑。比如在 Linux CI 上执行 `-r osx-arm64`，就能直接得到可在 Apple Silicon 运行的二进制。
 
-### 进阶参数
+## 六、支持的平台
 
-- **指定 glibc 版本**：`/p:GlibcVersion=2.35`（用于兼容旧 Linux 发行版）
-- **使用系统原生工具链**：`-p:AotPreferCustom=false`（默认 `true` 优先使用包内置的工具链；设为 `false` 则回退到系统原生的链接器——VS link.exe、系统 ld/gcc、Xcode ld64 等）
-- **剥离符号**：如需更小的文件体积，可通过 `/p:StripSymbols=true` 剥离调试符号（包内已包含符号剥离工具，自动处理）
-- **自定义 macOS SDK**：如需支持更多系统框架，可用 `/p:MacOSXSDKDir=<完整SDK路径>` 覆盖内置的精简 SDK
+| 宿主 \ 目标 | win-x64 | win-arm64 | linux-x64 | linux-arm64 | linux-musl-x64 | linux-musl-arm64 | osx-arm64 |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| **Windows x64** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Linux x64** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Linux arm64** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **macOS arm64** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
-## 六、交叉编译覆盖矩阵
+一句话：**任选一台 Windows 或 Linux 机器，就能产出全部目标平台的产物**（含 macOS arm64），无需 Mac。
 
-以下是经过 CI 验证的宿主 → 目标组合：
+## 七、常用参数
 
-| 宿主 ↓\\ 目标 →         | win-x64 | win-arm64 | linux-gnu-x64 | linux-gnu-arm64 | linux-musl-x64 | linux-musl-arm64 | osx-arm64 |
-| ------------------------- | ------- | --------- | ------------- | --------------- | -------------- | ---------------- | --------- |
-| **Windows x64**     | ✅      | ✅        | ✅            | ✅              | ✅             | ✅               | ✅        |
-| **Linux GNU x64**   | ✅      | ✅        | ✅            | ✅              | ✅             | ✅               | ✅        |
-| **Linux GNU arm64** | ✅      | ✅        | ✅            | ✅              | ✅             | ✅               | ✅        |
-| **macOS arm64**     | ✅      | ✅        | ✅            | ✅              | ✅             | ✅               | ✅        |
+- **兼容旧 Linux 发行版**：`/p:GlibcVersion=2.35`（指定 glibc 版本）
+- **剥离符号让产物更小**：`/p:StripSymbols=true`（包内自带符号剥离工具）
+- **改回系统原生工具链**：`-p:AotPreferCustom=false`（默认用包内置工具链，保证环境一致）
 
-> **macOS 目标说明**：借助自动提供的精简 macOS SDK（`MacOSX.SDK` 包），**从 Windows / Linux 也能直接产出 macOS（arm64）二进制**，全程无需 Mac。产物可直接在 Apple Silicon 上运行（无需额外签名）。当前支持 `osx-arm64`。
->
-> macOS arm64 宿主的编译能力与其它宿主一致；macOS 原生构建则走 Apple 原生工具链。
+## 八、在 CI 里就一条命令
 
-一个 Windows 或 Linux 环境，就能产出**全部**目标平台的 Native AOT 二进制（Windows + Linux(glibc/musl) + macOS arm64），无需任何 Mac。
-
-## 七、技术原理浅析
-
-### 工具链选择逻辑
-
-PublishAotCross.Tools 自动检测宿主与目标平台，分别使用两套工具链路：
-
-- **目标为 Windows** → XWin 链路：使用预打包的 Windows SDK 导入库（来自 xwin 项目）和 MSVC 兼容的 lld-link 链接器
-- **目标为 Linux / macOS** → Zig 链路：利用 Zig 编译器的交叉编译能力，自动处理目标平台对应的 C 库和启动代码；macOS 目标额外注入精简 macOS SDK
-
-#### XWin 链路（Windows 目标）
-
-Native AOT 编译需要 MSVC 兼容的链接器以及 Windows SDK/CRT 导入库。包内预置了这些组件，构建时自动注入链接器参数：
-
-```
-/vctoolsdir:<store>/splat/crt
-/winsdkdir:<store>/splat/sdk
-/LIBPATH:<store>/splat/sdk/lib/ucrt/arm64/
-/LIBPATH:<store>/splat/sdk/lib/um/arm64/
-/LIBPATH:<store>/splat/crt/lib/arm64/
-```
-
-包内根据宿主平台自动选择对应架构的 lld-link 链接器，整个过程对开发者完全透明。
-
-#### Zig 链路（Linux / macOS 目标）
-
-当目标不是 Windows 时，使用 Zig 作为交叉编译器。自动确定目标三元组（如 `aarch64-linux-gnu`、`x86_64-linux-musl`、`aarch64-macos`），通过 `--target=<triple>` 参数以交叉编译模式运行。包内还内置了参数兼容包装器，确保 Native AOT 编译器生成的命令参数能正确传递给 Zig。
-
-Zig 自带所有平台的 libc 和启动代码，无需宿主机预装任何交叉编译工具。**唯一的例外是 macOS**——Zig 不含 Apple 的 libSystem 与框架，需要额外提供 macOS SDK。
-
-#### macOS SDK 是怎么"自动提供"的
-
-macOS 目标需要 Apple SDK 里的系统库 stub（`.tbd`）与框架。为了做到"装上即用"，本项目：
-
-1. 从公开来源获取 macOS SDK，**只保留 Native AOT 链接所需的一小部分**（`usr/include`、系统 `.tbd`、若干个框架的 `.tbd`），把约 1.9GB 的完整 SDK 压缩成约 **15MB 的 NuGet 包 `MacOSX.SDK`**；
-2. 主包自动引用它，安装时即注入 `MacOSXSDKDir`，构建时由工具链自动传给 Zig（`-isysroot` + 显式框架/库搜索路径）；
-3. 产物可直接在 Apple Silicon 运行，**无需代码签名**。
-
-> 细节：Zig 不会从 `-isysroot` 自动推导框架搜索路径，需要显式传 `-F`/`-L`；Swift 运行时 stub 位于 `usr/lib/swift`。这些都已在包装器里处理。
-
-#### 符号剥离
-
-.NET Native AOT 默认的 `<DebugType>none</DebugType>` 和 `<StripSymbols>false</StripSymbols>` 已使发布产物不含调试符号，无需额外处理。
-
-### 同平台优化
-
-即使宿主和目标相同（如 Windows → Windows、Linux → Linux），PublishAotCross.Tools 也会自动接管工具链，使用包内置的编译器而非系统原生工具链。这样构建产物不依赖宿主机的 VS 版本或 GCC 版本，环境一致性更好，尤其适合 CI/CD。（macOS 原生构建例外，会回退到 Apple 原生工具链。）
-
-通过 `-p:AotPreferCustom=false` 可回退到使用系统原生的工具链。
-
-> **关键设计**：所有工具链文件（含 macOS SDK 精简包）都打包在 NuGet 中，`dotnet restore` 时自动解压。用户无需额外下载、安装或配置任何东西。
-
-## 八、CI/CD 集成实战
-
-现在**一个 runner 就能产出所有平台的二进制**——包括 macOS arm64，不再需要 macOS 构建机：
+以 GitHub Actions 为例，**一个 runner 就能打包全部平台，连 Mac 都不用**：
 
 ```yaml
 name: Publish Native AOT
@@ -207,6 +136,7 @@ on:
 
 jobs:
   build:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         rid:
@@ -218,8 +148,6 @@ jobs:
           - linux-musl-arm64
           - osx-arm64
 
-    runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -229,27 +157,36 @@ jobs:
       - name: Publish for ${{ matrix.rid }}
         run: dotnet publish -c Release -r ${{ matrix.rid }}
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: app-${{ matrix.rid }}
           path: bin/Release/net10.0/${{ matrix.rid }}/publish/
 ```
 
-**亮点**：无需为每个平台准备专用构建机，不用安装 Visual Studio、不用配置交叉编译器、不用维护 Docker 镜像、**连 Mac 都不需要**。一个 `ubuntu-latest` runner，就能产出包括 macOS arm64 在内的全部目标平台二进制。
+不用为每个平台准备构建机，不用装 VS，不用维护 Docker 镜像，**也不用排队等 macOS runner**。
 
-## 九、开源与社区
+## 九、常见问题
 
-PublishAotCross.Tools 基于 Apache-2.0 许可开源，可自由用于商业与闭源项目。
+**Q：macOS 产物在 Apple Silicon 上能直接跑吗？**
+可以，无需额外签名。
 
-- GitHub 仓库：`DotNet-AGPL/PublishAotCross.Tools`（https://github.com/DotNet-AGPL/PublishAotCross.Tools）
-- 通过 NuGet 安装：`dotnet add package PublishAotCross.Tools`
-- 接受 Issue 反馈和 Pull Request 贡献
+**Q：需要装 Dart/Go/Zig 等外部工具吗？**
+不需要，工具链随 NuGet 包自动就位，`dotnet restore` 时解压即可。
+
+**Q：不想用内置工具链怎么办？**
+加 `-p:AotPreferCustom=false`，回退到系统原生工具链。
+
+**Q：支持哪些 .NET 版本和 RID？**
+.NET 8+；目标 RID 见上面的支持矩阵。
 
 ## 十、试试看
 
-你的项目还在为跨平台 Native AOT 发愁吗？尤其是那个总也躲不开的"要出 macOS 就得有台 Mac"？
+如果你的项目也在为"发布多个平台"头疼，尤其是"要出 macOS 就得有台 Mac"这件事——
 
-如果你是 .NET 开发者，正在用 Native AOT，或正准备尝试，**不妨花三分钟加一个 NuGet 包，看看一条命令构建全平台（含 macOS）是什么体验**。
+**加一个 NuGet 包，把 `.csproj` 里的 RID 列表补上，然后敲一条 `dotnet publish` 就好了。**
 
-在 GitHub 上搜索 PublishAotCross.Tools，点个 Star 支持一下，也欢迎提出你的使用反馈和建议。
+- GitHub：`DotNet-AGPL/PublishAotCross.Tools`（https://github.com/DotNet-AGPL/PublishAotCross.Tools）
+- 安装：`dotnet add package PublishAotCross.Tools`
+- 基于 **Apache-2.0** 许可，可自由用于商业与闭源项目
+
+欢迎 Star、提 Issue、提 PR。祝构建顺利。
