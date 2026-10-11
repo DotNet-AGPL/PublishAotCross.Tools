@@ -84,10 +84,16 @@
       <TargetTriple Condition="'$(CrossCompileArch)' != '' and $(CrossCompileRid.StartsWith('linux'))">$(CrossCompileArch)-linux-gnu$(GlibcSuffix)</TargetTriple>
       <TargetTriple Condition="'$(CrossCompileArch)' != '' and ($(CrossCompileRid.StartsWith('linux-musl')) or $(CrossCompileRid.StartsWith('alpine')))">$(CrossCompileArch)-linux-musl</TargetTriple>
       <TargetTriple Condition="'$(CrossCompileArch)' != '' and $(CrossCompileRid.StartsWith('osx'))">$(CrossCompileArch)-macos</TargetTriple>
+
+      <!-- macOS SDK sysroot for cross-compiling to osx (from the MacOSX.SDK package
+           property MacOSXSDKDir, or the MACOSX_SDK environment variable). -->
+      <_MacOSXSDKDir Condition="'$(_MacOSXSDKDir)' == ''">$(MacOSXSDKDir)</_MacOSXSDKDir>
+      <_MacOSXSDKDir Condition="'$(_MacOSXSDKDir)' == ''">$(MACOSX_SDK)</_MacOSXSDKDir>
     </PropertyGroup>
 
     <ItemGroup Condition=" '$(CustomAotToolChain)' == 'zig' ">
       <LinkerArg Include="--target=$(TargetTriple)" />
+      <LinkerArg Condition="'$(_MacOSXSDKDir)' != '' and $(RuntimeIdentifier.StartsWith('osx'))" Include="-isysroot $(_MacOSXSDKDir)" />
     </ItemGroup>
 
     <PropertyGroup Condition=" '$(CustomAotToolChain)' == 'xwin' ">

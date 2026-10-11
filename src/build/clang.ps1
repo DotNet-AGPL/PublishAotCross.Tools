@@ -3,6 +3,8 @@ if (-not (Get-Command -Name zig -CommandType Application -ErrorAction SilentlyCo
   exit 1
 }
 
+if ($env:MACOSX_SDK) { [Console]::Error.WriteLine("[publishaotcross clang wrapper] invoked; MACOSX_SDK=$env:MACOSX_SDK") }
+
 $zigArgs = @()
 
 foreach ($arg in $args) {

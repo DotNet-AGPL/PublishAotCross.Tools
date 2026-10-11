@@ -1,0 +1,16 @@
+﻿=== watch run 38128233514 2026-10-11T17:24:24.9469417+08:00 ===
+17:24:25 status=in_progress conclusion=
+17:24:57 status=in_progress conclusion=
+17:25:28 status=in_progress conclusion=
+17:25:59 status=in_progress conclusion=
+17:26:30 status=in_progress conclusion=
+17:27:00 status=in_progress conclusion=
+17:27:31 status=in_progress conclusion=
+17:28:02 status=completed conclusion=failure
+job: Cross-compile osx-arm64 (Windows host) => failure
+job: Cross-compile (Linux) => success
+job: Cross-compile (macOS) => success
+job: Cross-compile (Windows) => success
+job: Run linux-x64 binary => success
+job: Run cross-built osx-arm64 (macOS) => skipped
+=== done 2026-10-11T17:28:03.3530548+08:00 ===
