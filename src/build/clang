@@ -29,9 +29,15 @@ arr=("${arr[@]:0:3}" "-Wl,-u,__Module" "${arr[@]:3}")
 args="${arr[*]}"
 
 
-# macOS cross-compilation: inject the macOS SDK sysroot (compile + link).
+# macOS cross-compilation: zig does not derive framework/library search paths
+# from -isysroot, so pass them explicitly.
 if [ -n "$MACOSX_SDK" ] && echo " $args " | grep -qE 'macos|apple'; then
-  arr=("-isysroot" "$MACOSX_SDK" "${arr[@]}")
+  arr=("-isysroot" "$MACOSX_SDK" \
+       "-F" "$MACOSX_SDK/System/Library/Frameworks" \
+       "-F" "$MACOSX_SDK/System/Library/PrivateFrameworks" \
+       "-L" "$MACOSX_SDK/usr/lib" \
+       "-L" "$MACOSX_SDK/usr/lib/swift/macosx" \
+       "${arr[@]}")
 fi
 
 # Run zig cc

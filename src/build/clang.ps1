@@ -24,9 +24,17 @@ foreach ($arg in $args) {
   $zigArgs += $translatedArg
 }
 
-# macOS cross-compilation: inject the macOS SDK sysroot (compile + link).
+# macOS cross-compilation: zig does not derive framework/library search paths
+# from -isysroot, so pass them explicitly.
 if ($env:MACOSX_SDK -and (($zigArgs -join ' ') -match 'macos|apple')) {
-  $zigArgs = @('-isysroot', $env:MACOSX_SDK) + $zigArgs
+  $sdk = $env:MACOSX_SDK
+  $zigArgs = @(
+    '-isysroot', $sdk,
+    '-F', "$sdk/System/Library/Frameworks",
+    '-F', "$sdk/System/Library/PrivateFrameworks",
+    '-L', "$sdk/usr/lib",
+    '-L', "$sdk/usr/lib/swift/macosx"
+  ) + $zigArgs
 }
 
 $zigArgs = @('-Wl,-u,__Module') + $zigArgs
