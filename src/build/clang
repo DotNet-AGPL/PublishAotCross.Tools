@@ -27,14 +27,9 @@ arr=("${arr[@]:0:3}" "-Wl,-u,__Module" "${arr[@]:3}")
 args="${arr[*]}"
 
 
-# macOS cross-compilation: inject the macOS SDK sysroot (compile + link) and
-# request an ad-hoc code signature (link only; required on Apple Silicon).
+# macOS cross-compilation: inject the macOS SDK sysroot (compile + link).
 if [ -n "$MACOSX_SDK" ] && echo " $args " | grep -qE 'macos|apple'; then
-  if echo " $args " | grep -qE ' -c '; then
-    arr=("-isysroot" "$MACOSX_SDK" "${arr[@]}")
-  else
-    arr=("-isysroot" "$MACOSX_SDK" "-Wl,-adhoc_codesign" "${arr[@]}")
-  fi
+  arr=("-isysroot" "$MACOSX_SDK" "${arr[@]}")
 fi
 
 # Run zig cc
