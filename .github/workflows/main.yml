@@ -51,6 +51,12 @@ jobs:
             9.0.x
             10.0.x
 
+      # NuGet.Config declares a local feed at ./artifacts; it must exist even
+      # when empty, otherwise restore fails with NU1301.
+      - name: Create local NuGet feed folder
+        shell: bash
+        run: mkdir -p artifacts
+
       - name: Cross-compile
         shell: bash
         run: |
