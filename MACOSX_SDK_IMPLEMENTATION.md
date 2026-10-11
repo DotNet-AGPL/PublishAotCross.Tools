@@ -1,321 +1,166 @@
-# macOS SDK Cross-Compilation 实施方案
+# macOS SDK 交叉编译（osx-arm64）
 
-## 背景
+> **状态：已实现并经 CI 端到端验证（2026-10）**
+> 在 Windows/Linux 上直接交叉编译出**可在 Apple Silicon 运行**的 `osx-arm64` 产物，构建全程**不需要 Mac**。
+> 范围：**仅 `osx-arm64`**（不含 osx-x64）。
 
-当前 `CustomAotToolChain=zig` 路径对 osx target 只设置了 `--target=$(TargetTriple)`，没有注入 macOS SDK 路径。
-在非 macOS 主机上编译 osx target 时，zig 缺少 macOS 系统库（libSystem、CoreFoundation 等），导致链接失败。
+## 目标与原理
 
-本方案参照 `XWin.Store.*` 模式，将 macOS SDK 打包为 NuGet 包，在非 macOS → osx 交叉编译时自动注入 `-isysroot`。
+.NET Native AOT 到 macOS 需要：C 编译器 `clang`（由 zig 提供）+ 链接需要的 macOS 系统库/框架。
+zig **不自带** Apple 的 libSystem / 框架，因此必须提供 **macOS SDK**。
 
-> **当前状态（2026-10）**
-> - **macOS 主机 → osx 目标（原生）已实现并经 CI 验证**：`src/build/Scripts/SetPath.cs` 对「原生 macOS」跳过自定义工具链（不再走 zig），改用 Apple 原生工具链——因为 **zig 即使在本机也找不到 macOS SDK**（会报 `unable to find system framework "Foundation"`）。CI 的 `macOS` job 已成功构建并运行 `osx-arm64`。
-> - **非 macOS 主机 → osx 目标（交叉）**：即本文档所述方案，**尚未实现**。
-> - 主包版本已与 toolsets 解耦：主包用新增的 `PublishAotCrossVersion`，工具集仍用 `$(Revision)`。下文示例中的版本号按此更新。
+本实现参照 `XWin.Store.*` 模式：把 macOS SDK 的**必需子集**打包为 NuGet 包 `MacOSX.SDK`，
+主包自动引用它 → 用户装上即用（自动得到 `MacOSXSDKDir`），无需手动配置。
 
----
+## 实测得出的关键结论（重要）
 
-## SDK 来源
+1. **zig 不会从 `-isysroot` 推导 framework/lib 搜索路径**（会报 `searched paths: none`）。
+   必须显式传：
+   - `-F <sdk>/System/Library/Frameworks`
+   - `-F <sdk>/System/Library/PrivateFrameworks`
+   - `-L <sdk>/usr/lib`
+   - `-L <sdk>/usr/lib/swift`（**Swift 运行时 `.tbd` 在这里**，不是 `usr/lib/swift/macosx`）
+2. **`-Wl,-adhoc_codesign` 不被 zig 链接器支持**；但**实测无需**——zig 产出的 Mach-O 可直接在 Apple Silicon 运行。
+3. **`-Wl,-u,__Module` 是 ELF 专用 workaround**；在 Mach-O 上会报 `undefined symbol: __Module`，macOS 目标必须**跳过**。
+4. **编译阶段不需要 macOS 头文件**（AOT 生成的 C++ 只用运行时自带头）；真正需要 SDK 的是**链接阶段**。
+   为稳妥，过滤集仍保留 `usr/include`。
 
-| 来源 | stars | 最新 SDK | 下载 |
-|---|---|---|---|
-| [joseluisq/macosx-sdks](https://github.com/joseluisq/macosx-sdks) | 226 | **26.1 (Tahoe)** | [Release 26.1](https://github.com/joseluisq/macosx-sdks/releases/tag/26.1) |
+## SDK 来源与过滤
 
-SDK 信息（来自 [macosx_sdks.json](https://raw.githubusercontent.com/joseluisq/macosx-sdks/master/macosx_sdks.json)）：
+[doseluisq/macosx-sdks](https://github.com/joseluisq/macosx-sdks) 打包了来自 Apple Xcode 的 SDK。
 
-| 版本 | 日期 | SHA256 | 体积 |
-|---|---|---|---|
-| **26.1** | 2025-11-03 | `beee7212d265a6d2867d0236cc069314b38d5fb3486a6515734e76fa210c784c` | 83.5 MB (tar.xz) |
+| 版本 | SHA256 | 归档 |
+|---|---|---|
+| **26.1** | `beee7212d265a6d2867d0236cc069314b38d5fb3486a6515734e76fa210c784c` | 83.5 MB `tar.xz` |
+| 26.0 | `07ccaa2891454713c3a230dd87283f76124193309d9a7617ebee45354c9302d2` | |
+| 15.5 | `c15cf0f3f17d714d1aa5a642da8e118db53d79429eb015771ba816aa7c6c1cbd` | |
 
-macOS SDK 是 **Universal**（x86_64 + arm64 合一），不区分架构包。
+完整 SDK 解压 **1883 MB**（nuget.org 单包上限 ~250MB，**不能整包**）。
+只取 NativeAOT 需要的一小部分（未压缩 ~108MB → **nupkg ~15MB**）：
 
-> ⚠️ **许可**：macOS SDK 受 Apple Xcode 许可协议保护。下载脚本需显示许可提示并要求用户确认。
-
----
-
-## 实施步骤
-
-### 步骤 1：更新 `.gitignore`
-
-在 `toolsets/.gitignore` 或项目根 `.gitignore` 添加：
-
-```gitignore
-# macOS SDK tmp
-toolsets/MacOSX.SDK/.macosx-sdk-tmp/
+```
+usr/include/**                                             # 头文件
+usr/lib/**/*.tbd                                           # libSystem/libobjc/libicucore…
+usr/lib/swift/**/*.tbd                                     # libswiftCore/libswiftFoundation…
+System/Library/Frameworks/{CoreFoundation,Foundation,Security,Network,GSS,CryptoKit}.framework/**/*.tbd
 ```
 
-### 步骤 2：`toolsets/MacOSX.SDK/build/MacOSX.SDK.props`
+框架白名单起步 6 个；若链接报缺其它框架，扩充 `download-macosx-sdk.ps1` 里的 `$frameworks` 列表。
+用户如需完整 SDK，可用 `MacOSXSDKDir`（或 `MACOSX_SDK` 环境变量）覆盖。
 
-```xml
-<Project>
-  <PropertyGroup>
-    <MacOSXSDKDir>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)../tools/.macosx-sdk'))</MacOSXSDKDir>
-  </PropertyGroup>
-</Project>
-```
+> ⚠️ **许可**：SDK 内容受 Apple Xcode 许可约束。包设 `PackageRequireLicenseAcceptance=true`，
+> 下载脚本 `download-macosx-sdk.ps1` 也要求显式 `-AcceptLicense`。
 
-### 步骤 3：`toolsets/MacOSX.SDK/MacOSX.SDK.nuproj`
+## 实现概览
 
-```xml
-<Project Sdk="Microsoft.Build.NoTargets">
-  <Import Project="../ToolsetsVersion.props" />
+### 1. `toolsets/MacOSX.SDK/`（NuGet 包）
+- `MacOSX.SDK.nuproj`：把 `.macosx-sdk-tmp/**` 打包为 `tools/.macosx-sdk`；`PackageRequireLicenseAcceptance=true`；版本 `$(MacOSXSDKVersion).$(Revision)`（= `26.1.9`）。
+- `build/MacOSX.SDK.props`（`buildTransitive`）：
+  ```xml
+  <MacOSXSDKDir>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)../tools/.macosx-sdk'))</MacOSXSDKDir>
+  ```
+- `README.md`：用法与 Apple 许可说明。
 
-  <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <NoWarn>$(NoWarn);NU5128</NoWarn>
-    <PackageId>MacOSX.SDK</PackageId>
-    <Version>$(MacOSXSDKVersion).$(Revision)</Version>
-    <Description>macOS SDK $(MacOSXSDKVersion) (from joseluisq/macosx-sdks) for cross-compiling NativeAOT to macOS from non-macOS hosts</Description>
-    <PackageProjectUrl>https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/MacOSX.SDK</PackageProjectUrl>
-    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-    <!-- 安装时请求用户接受许可（见文末「安装时确认」一节） -->
-    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-  </PropertyGroup>
+### 2. `toolsets/download-macosx-sdk.ps1`
+下载（SHA256 校验）→ 解压（7-Zip 解 `.tar.xz`，bsdtar 解 `.tar`）→ **按上述规则裁剪**到 `.macosx-sdk-tmp/`。
 
-  <ItemGroup>
-    <None Include=".macosx-sdk-tmp/**/*" Pack="true" PackagePath="tools/.macosx-sdk" />
-    <None Include="build/MacOSX.SDK.props" Pack="true" PackagePath="buildTransitive" />
-    <None Include="README.md" Pack="true" PackagePath="/" />
-  </ItemGroup>
-</Project>
-```
+### 3. `toolsets/ToolsetsVersion.props`
+新增 `MacOSXSDKVersion=26.1`（连同 `Revision=9`、`PublishAotCrossVersion`）。
 
-> 关键：`.macosx-sdk-tmp/**/*` 打包为 `tools/.macosx-sdk`。SDK 内容直接在此目录下（`usr/`, `System/` 等）。
-
-### 步骤 4：`toolsets/download-macosx-sdk.ps1`
-
-```powershell
-param(
-  [switch]$AcceptLicense,
-  [string]$Version = "26.1",
-  [string]$StoreTmp = "$PSScriptRoot/MacOSX.SDK/.macosx-sdk-tmp"
-)
-
-if (-not $AcceptLicense) {
-  Write-Host "=== Apple Xcode License Notice ==="
-  Write-Host "This script downloads the macOS SDK from joseluisq/macosx-sdks."
-  Write-Host "The macOS SDK is subject to Apple's Xcode license terms:"
-  Write-Host "  https://www.apple.com/legal/sla/docs/xcode.pdf"
-  Write-Host "By downloading and using this SDK, you agree to those terms."
-  Write-Host ""
-  $confirm = Read-Host "Do you accept the license terms? (y/N)"
-  if ($confirm -ne "y" -and $confirm -ne "Y") { Write-Error "License not accepted"; exit 1 }
-}
-
-$url = "https://github.com/joseluisq/macosx-sdks/releases/download/$Version/MacOSX$Version.sdk.tar.xz"
-
-# SHA256 from macosx_sdks.json
-$sha256 = switch ($Version) {
-  "26.1" { "beee7212d265a6d2867d0236cc069314b38d5fb3486a6515734e76fa210c784c" }
-  "26.0" { "07ccaa2891454713c3a230dd87283f76124193309d9a7617ebee45354c9302d2" }
-  "15.5" { "c15cf0f3f17d714d1aa5a642da8e118db53d79429eb015771ba816aa7c6c1cbd" }
-  default { throw "Unknown version $Version. Add SHA256 from https://raw.githubusercontent.com/joseluisq/macosx-sdks/master/macosx_sdks.json" }
-}
-
-$archive = "$env:TEMP\MacOSX$Version.sdk.tar.xz"
-
-Write-Host "Downloading $url ..."
-curl.exe -sL $url -o $archive
-if (-not $?) { Write-Error "Download failed"; exit 1 }
-
-$actual = (Get-FileHash -Path $archive -Algorithm SHA256).Hash
-if ($actual -ne $sha256) { Write-Error "SHA256 mismatch:`n  Expected: $sha256`n  Actual:   $actual"; exit 1 }
-Write-Host "SHA256 verified."
-
-Remove-Item -Recurse -Force $StoreTmp -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Path $StoreTmp -Force | Out-Null
-tar -xf $archive -C $StoreTmp
-if (-not $?) { Write-Error "Extraction failed"; exit 1 }
-
-$sz = (Get-ChildItem $StoreTmp -Recurse -File | Measure-Object -Property Length -Sum).Sum
-Write-Host "Done. SDK extracted to $StoreTmp"
-Write-Host "  Size: $([math]::Round($sz/1MB, 0)) MB"
-Write-Host ""
-Write-Host "Next step: dotnet pack toolsets\MacOSX.SDK\MacOSX.SDK.nuproj -o artifacts --force"
-```
-
-### 步骤 5：更新 `toolsets/ToolsetsVersion.props`
-
-添加 `MacOSXSDKVersion`：
-
-```xml
-<Project>
-  <PropertyGroup>
-    <ZigVersion Condition="'$(ZigVersion)' == ''">0.17.0.1</ZigVersion>
-    <XWinVersion Condition="'$(XWinVersion)' == ''">0.10.0</XWinVersion>
-    <LLDVersion Condition="'$(LLDVersion)' == ''">23.1.3</LLDVersion>
-    <MacOSXSDKVersion Condition="'$(MacOSXSDKVersion)' == ''">26.1</MacOSXSDKVersion>
-    <Revision Condition="'$(Revision)' == ''">9</Revision>
-    <PublishAotCrossVersion Condition="'$(PublishAotCrossVersion)' == ''">0.6.0.11</PublishAotCrossVersion>
-  </PropertyGroup>
-</Project>
-```
-
-### 步骤 6：修改 `src/build/Crosscompile.targets` — 注入 `-isysroot`
-
-在 `OverwriteTargetTriple` target 的 zig 部分追加两个修改：
-
-**在 zig PropertyGroup 内追加**（在 `</PropertyGroup>` 之前）：
-
-```xml
-<PropertyGroup Condition=" '$(CustomAotToolChain)' == 'zig' ">
-  <!-- ... 现有代码 CrossCompileRid, CrossCompileArch, TargetTriple ... -->
-
-  <!-- 新增：从非 macOS host 编译 osx 时加载 SDK 路径 -->
-  <_MacOSXSDKDir Condition="$(RuntimeIdentifier.StartsWith('osx')) and !$(HostRuntimeIdentifier.StartsWith('osx'))">$(MacOSXSDKDir)</_MacOSXSDKDir>
-</PropertyGroup>
-```
-
-**在 zig ItemGroup 内追加**（在 `--target=$(TargetTriple)` 之后）：
-
-```xml
-<ItemGroup Condition=" '$(CustomAotToolChain)' == 'zig' ">
-  <LinkerArg Include="--target=$(TargetTriple)" />
-  <!-- 新增：非 macOS host 编译 osx 时注入 SDK sysroot -->
-  <LinkerArg Condition="'$(_MacOSXSDKDir)' != ''" Include="-isysroot $(MacOSXSDKDir)" />
-</ItemGroup>
-```
-
-**条件逻辑**：
-| Host | Target | `_MacOSXSDKDir` | 是否注入 `-isysroot` |
-|---|---|---|---|
-| win/linux | osx | 有值 | ✅ 注入 |
-| osx | osx | 空 | ❌ 不注入（zig 用本地 SDK） |
-| win/linux | linux | 空 | ❌ 不注入 |
-| osx | linux | 空 | ❌ 不注入 |
-
-### 步骤 7：更新 `src/PublishAotCross.Tools.nuproj`
-
-在 `XWin.Store.*` 引用块附近添加：
-
+### 4. 主包 `src/PublishAotCross.Tools.nuproj`
 ```xml
 <PackageReference Include="MacOSX.SDK" Version="$(MacOSXSDKVersion).$(Revision)" />
 ```
 
-完整的引用块现在：
-
+### 5. `src/build/Crosscompile.targets`
 ```xml
-<ItemGroup>
-  <!-- Zig toolchain packages -->
-  <PackageReference Include="Vezel.Zig.Toolsets.win-x64" Version="$(ZigVersion)" GeneratePathProperty="true" />
-  <PackageReference Include="Vezel.Zig.Toolsets.win-arm64" Version="$(ZigVersion)" GeneratePathProperty="true" />
-  <PackageReference Include="Vezel.Zig.Toolsets.linux-x64" Version="$(ZigVersion)" GeneratePathProperty="true" />
-  <PackageReference Include="Vezel.Zig.Toolsets.linux-arm64" Version="$(ZigVersion)" GeneratePathProperty="true" />
-  <PackageReference Include="Vezel.Zig.Toolsets.osx-x64" Version="$(ZigVersion)" GeneratePathProperty="true" />
-  <PackageReference Include="Vezel.Zig.Toolsets.osx-arm64" Version="$(ZigVersion)" GeneratePathProperty="true" />
-
-  <!-- XWin SDK store packages -->
-  <PackageReference Include="XWin.Store.x64" Version="$(XWinVersion).$(Revision)" />
-  <PackageReference Include="XWin.Store.arm64" Version="$(XWinVersion).$(Revision)" />
-
-  <!-- macOS SDK package (for win/linux → osx cross-compile) -->
-  <PackageReference Include="MacOSX.SDK" Version="$(MacOSXSDKVersion).$(Revision)" />
-
-  <!-- LLD linker packages -->
-  <PackageReference Include="LLD.Link.Toolsets.win-x64" Version="$(LLDVersion).$(Revision)" />
-  <PackageReference Include="LLD.Link.Toolsets.linux-x64" Version="$(LLDVersion).$(Revision)" />
-  <PackageReference Include="LLD.Link.Toolsets.win-arm64" Version="$(LLDVersion).$(Revision)" />
-  <PackageReference Include="LLD.Link.Toolsets.linux-arm64" Version="$(LLDVersion).$(Revision)" />
-  <PackageReference Include="LLD.Link.Toolsets.osx-arm64" Version="$(LLDVersion).$(Revision)" />
-</ItemGroup>
+<!-- 顶部：SDK 目录（属性优先，回退到 MACOSX_SDK 环境变量） -->
+<MacOSXSDKDir Condition="'$(MacOSXSDKDir)' == ''">$(MACOSX_SDK)</MacOSXSDKDir>
+...
+<!-- zig 段：给 osx 目标注入 -isysroot -->
+<LinkerArg Condition="'$(_MacOSXSDKDir)' != '' and $(RuntimeIdentifier.StartsWith('osx'))" Include="-isysroot $(_MacOSXSDKDir)" />
 ```
 
-### 步骤 8：创建 `toolsets/MacOSX.SDK/README.md`
-
-```markdown
-# MacOSX.SDK
-
-macOS SDK for cross-compiling NativeAOT to macOS from non-macOS hosts.
-
-Packaged from [joseluisq/macosx-sdks](https://github.com/joseluisq/macosx-sdks), which packages
-the SDK from Apple Xcode.
-
-## Usage
-
-This package is automatically referenced by `PublishAotCross.Tools`.
-No manual action needed after initial SDK download.
-
-## License
-
-The SDK content itself is subject to Apple's Xcode license terms:
-https://www.apple.com/legal/sla/docs/xcode.pdf
-
-This NuGet packaging metadata is Apache-2.0.
+### 6. `src/build/Scripts/SetPath.cs`
+把 `MacOSXSDKDir` 写入 `MACOSX_SDK` 环境变量，供 clang wrapper 使用：
+```csharp
+if (!string.IsNullOrEmpty(MacOSXSDKDir)) {
+  Environment.SetEnvironmentVariable("MACOSX_SDK", MacOSXSDKDir);
+}
 ```
 
----
+### 7. `src/build/clang` 与 `clang.ps1`（Zig 包装）
+当目标为 macOS 且设了 `MACOSX_SDK` 时注入 `-isysroot` + `-F` + `-L`；并跳过 `-Wl,-u,__Module`。
 
-## 执行顺序
+### 8. `src/build/Scripts/SetPath.cs` — 原生 macOS 例外
+宿主=目标=osx 时**不走 zig**（用 Apple 原生工具链），因为 zig 在本机也找不到 macOS SDK。
+
+## 执行顺序（维护者）
 
 ```bash
-# 1. 下载 SDK（首次需要接受 Apple 许可证）
+# 1. 下载并过滤 SDK（首次需接受 Apple 许可）
 .\toolsets\download-macosx-sdk.ps1 -AcceptLicense
 
-# 2. 打包 MacOSX.SDK NuGet
+# 2. 打包 MacOSX.SDK
 dotnet pack toolsets\MacOSX.SDK\MacOSX.SDK.nuproj -o artifacts --force
 
-# 3. 打包主包
+# 3. 打包主包（会自动引用 MacOSX.SDK）
 dotnet pack src\PublishAotCross.Tools.nuproj -o artifacts --force
 
-# 4. 测试：win → osx-arm64
-dotnet publish test/TestPublish/TestNupkg.csproj -c Release -r osx-arm64
+# 4. 验证：win → osx-arm64（无需手动设 SDK 路径）
+dotnet publish test/TestPublish/TestNupkg.csproj -c Release -f net10.0 -r osx-arm64
 ```
-
----
 
 ## SDK 版本升级流程
 
 ```bash
-# 场景：macOS 发布新版本（如 26.1 → 27.0）
 # 1. 在 joseluisq/macosx-sdks 找到新版本 SHA256
 # 2. 更新 toolsets/download-macosx-sdk.ps1 中的 SHA256 map
 # 3. toolsets/ToolsetsVersion.props → MacOSXSDKVersion=27.0
 # 4. 重新下载打包
 .\toolsets\download-macosx-sdk.ps1 -AcceptLicense -Version 27.0
 dotnet pack toolsets\MacOSX.SDK\MacOSX.SDK.nuproj -o artifacts --force
-dotnet pack src\PublishAotCross.Tools.nuproj -o artifacts --force
 ```
 
----
+## CI
+
+`.github/workflows/main.yml`：
+- `sdk` job（windows-latest）：下载 + 过滤 + 打包 `MacOSX.SDK`，上传为 artifact。
+- `cross_osx_arm64` job（windows-latest）：下载该 `MacOSX.SDK` 包到本地 feed → 打主包 → `dotnet publish -r osx-arm64` → 校验 Mach-O → 上传。
+- `run_osx_arm64` job（macos-latest）：下载该产物并**运行**（验证可在 arm64 运行）。
+- 全程**不推送 NuGet**。
 
 ## 设计决策
 
-| 决策 | 选项 | 选择理由 |
+| 决策 | 选择 | 理由 |
 |---|---|---|
-| SDK 来源 | joseluisq/macosx-sdks | 226 stars，活跃更新到 26.1 |
-| 分 arch？ | 不分 | macOS SDK 是 universal（单文件含多架构） |
-| 注入方式 | `-isysroot` | zig cc 的 Clang driver 原生支持 |
-| 注入时机 | 只在 `HostRuntimeIdentifier` 非 osx 时 | 原生 macOS 已改用 Apple 工具链（不入 zig），故仅交叉场景注入 |
-| 合规处理 | 下载脚本显示许可证提示，用户显式确认 | 与 xwin `--accept-license` 同理 |
-| 包版号 | `$(MacOSXSDKVersion).$(Revision)` = `26.1.6` | 与 XWin.Store 和 LLD.Link.Toolsets 格式一致 |
+| SDK 来源 | joseluisq/macosx-sdks | 打包了 Apple Xcode SDK，活跃更新 |
+| 交付方式 | **过滤子集打进 NuGet** | 完整 1.9GB 超 nuget.org 上限；子集仅 ~15MB，用户装上即用 |
+| 链接器 | zig 内置 Mach-O 链接器 | 不必引入 `ld64.lld`；实测可产出可运行产物 |
+| sysroot 注入 | `-isysroot` + 显式 `-F`/`-L` | zig 不自动推导框架/库路径 |
+| 签名 | 不做 | zig 产物可直接在 arm64 运行（实测） |
+| 原生 macOS | 不走 zig，用 Apple 工具链 | zig 在本机也找不到 SDK |
+| 合规 | `PackageRequireLicenseAcceptance` + 脚本 `-AcceptLicense` | 用户显式同意 |
+| 包版号 | `$(MacOSXSDKVersion).$(Revision)` = `26.1.9` | 与 XWin.Store/LLD 一致 |
 
----
+## 许可说明（`PackageRequireLicenseAcceptance`）
 
-## 安装时确认许可（PackageRequireLicenseAcceptance）
-
-可以在 SDK 包的 nuspec 上设置 `PackageRequireLicenseAcceptance=true`，让 **NuGet 客户端在安装时弹出许可确认**：
-
-- **Visual Studio / `nuget.exe install`**：会弹出许可对话框，用户需点击「I Accept」。
-- **`dotnet restore` / `dotnet add package` / CI**：**默认不弹窗**，会静默继续（至多警告）。因此它只是「软」门槛，**不能**作为强制合规手段。
-- 可配合 `PackageLicenseFile`（放 Apple Xcode 许可文本）让确认对话框展示具体条款。
-
-> 结论：若目标只是「让 VS 用户点一下确认」→ 够用；若要**可靠**的授权同意，仍建议「下载脚本 `-AcceptLicense` + 用户显式同意」的模式。
-
----
-
-## 风险：交叉产物无法直接在 Apple Silicon 上运行
-
-macOS（尤其 Apple Silicon）要求可执行文件至少经过 **ad-hoc 签名**才能运行，而 `codesign` **仅在 macOS 上可用**。zig/lld 能否直接产出 ad-hoc 签名的 Mach-O 需要实测；否则交叉产物需在 macOS 上补 `codesign -s - <binary>`。这直接影响验证清单里「产物在 macOS 上能运行」一条。
-
----
+- **Visual Studio / `nuget.exe install`**：安装时弹出「I Accept」对话框。
+- **`dotnet restore` / CI**：默认不弹窗（视为「使用即接受」）。
+- Apple 条款文本见包内 `README.md` 与 `NOTICE`；`PackageRequireLicenseAcceptance` 弹窗展示的是包自身许可（Apache-2.0）。
 
 ## 验证清单
 
-- [ ] `.\toolsets\download-macosx-sdk.ps1 -AcceptLicense` 下载并解压成功
-- [ ] SHA256 校验通过
-- [ ] `dotnet pack toolsets\MacOSX.SDK\MacOSX.SDK.nuproj` 打包成功
-- [ ] `dotnet pack src\PublishAotCross.Tools.nuproj` 打包成功
-- [ ] `dotnet publish -r osx-arm64` 在 Windows 上成功编译
-- [ ] 产物 `file` 命令输出 `Mach-O 64-bit executable arm64`
-- [ ] 产物在 macOS 上能运行（需实际 macOS 环境验证）
-- [x] macOS host 发布 osx-arm64（原生，走 Apple 工具链，不入 zig）— **已由 CI 验证**
+- [x] `download-macosx-sdk.ps1` 下载 + SHA256 + 过滤成功（108 MB）
+- [x] `MacOSX.SDK.26.1.9.nupkg` 打包成功（**14.7 MB**，< 250MB 上限）
+- [x] 主包打包成功，且 nuspec 含 `MacOSX.SDK 26.1.9` 依赖
+- [x] `dotnet publish -r osx-arm64` 在 Windows 上成功编译出 Mach-O（magic `cffaedfe`）
+- [x] 产物在 macOS(arm64) runner 上运行成功（CI `run_osx_arm64`）——**无需签名**
+- [x] macOS host 发布 osx-arm64（原生，走 Apple 工具链，不入 zig）——CI 通过
+- [x] CI 端到端全绿（`sdk` → 主包 → 交叉编译 → 运行）
+
+## 未做 / 边界
+
+- **osx-x64**：不支持（按决定仅 osx-arm64）。
+- **`MacOSX.SDK` 发布**：按约定**未推送 NuGet**（如需发布，先推 `MacOSX.SDK.26.1.9` 再推主包新版本）。
+- **框架白名单**：目前 6 个；GUI/复杂应用可能需扩充。
