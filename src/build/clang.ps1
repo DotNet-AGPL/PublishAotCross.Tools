@@ -37,7 +37,11 @@ if ($env:MACOSX_SDK -and (($zigArgs -join ' ') -match 'macos|apple')) {
   ) + $zigArgs
 }
 
-$zigArgs = @('-Wl,-u,__Module') + $zigArgs
+# The -Wl,-u,__Module workaround targets the ELF (zig) linker; on Mach-O it
+# makes the linker require an undefined symbol and fails, so skip it for macOS.
+if (-not (($zigArgs -join ' ') -match 'macos|apple')) {
+  $zigArgs = @('-Wl,-u,__Module') + $zigArgs
+}
 
 & zig cc @zigArgs
 exit $LASTEXITCODE

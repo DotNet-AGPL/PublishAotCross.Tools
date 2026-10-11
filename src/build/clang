@@ -23,10 +23,12 @@ args=${args//-Wl,-pie /}
 args=${args//-pie /}
 args=${args//-Wl,-e0x0 /}
 
-# Works around zig linker dropping necessary parts of the executable.
+# Works around zig linker dropping necessary parts of the executable (ELF only).
 read -ra arr <<< "$args"
-arr=("${arr[@]:0:3}" "-Wl,-u,__Module" "${arr[@]:3}")
-args="${arr[*]}"
+if ! echo " $args " | grep -qE 'macos|apple'; then
+  arr=("${arr[@]:0:3}" "-Wl,-u,__Module" "${arr[@]:3}")
+  args="${arr[*]}"
+fi
 
 
 # macOS cross-compilation: zig does not derive framework/library search paths
