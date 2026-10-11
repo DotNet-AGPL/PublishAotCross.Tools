@@ -41,7 +41,8 @@ jobs:
             rids: linux-x64 linux-arm64
           - name: macOS
             os: macos-latest
-            rids: osx-arm64 osx-x64
+            rids: osx-arm64
+            runrid: osx-arm64
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -70,12 +71,12 @@ jobs:
             echo "::endgroup::"
           done
 
-      - name: Run osx-arm64 binary (macOS only)
-        if: matrix.host.name == 'macOS'
+      - name: Run binary (native hosts)
+        if: matrix.host.runrid != ''
         shell: bash
         run: |
-          chmod +x output/osx-arm64/TestNupkg
-          ./output/osx-arm64/TestNupkg
+          chmod +x "output/${{ matrix.host.runrid }}/TestNupkg"
+          "output/${{ matrix.host.runrid }}/TestNupkg"
 
       - name: Upload binaries
         uses: actions/upload-artifact@v4

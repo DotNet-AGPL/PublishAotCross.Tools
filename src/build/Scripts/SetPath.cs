@@ -52,7 +52,11 @@ if (isTargetingWindows) {
     return Success;
   }
 } else {
-  if (buildenv != RuntimeIdentifier || AotPreferCustom) {
+  // On a macOS host targeting macOS, use the native Apple toolchain (Xcode):
+  // Zig cannot link against Apple's libSystem/frameworks without a macOS SDK.
+  var nativeMac = buildenv.StartsWith("osx") && buildenv == RuntimeIdentifier;
+
+  if (!nativeMac && (buildenv != RuntimeIdentifier || AotPreferCustom)) {
     Environment.SetEnvironmentVariable("PATH", MSBuildThisFileDirectory + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH"));
 
     if (!isHostWindows) {
