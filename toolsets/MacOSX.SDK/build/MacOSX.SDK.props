@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup>
+    <MacOSXSDKDir>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)../tools/.macosx-sdk'))</MacOSXSDKDir>
+  </PropertyGroup>
+</Project>

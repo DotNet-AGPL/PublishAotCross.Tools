@@ -3,6 +3,7 @@
     <ZigVersion Condition="'$(ZigVersion)' == ''">0.17.0.1</ZigVersion>
     <XWinVersion Condition="'$(XWinVersion)' == ''">0.10.0</XWinVersion>
     <LLDVersion Condition="'$(LLDVersion)' == ''">23.1.3</LLDVersion>
+    <MacOSXSDKVersion Condition="'$(MacOSXSDKVersion)' == ''">26.1</MacOSXSDKVersion>
     <Revision Condition="'$(Revision)' == ''">9</Revision>
     <PublishAotCrossVersion Condition="'$(PublishAotCrossVersion)' == ''">0.6.0.11</PublishAotCrossVersion>
   </PropertyGroup>

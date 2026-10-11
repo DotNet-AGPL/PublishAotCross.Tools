@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.Build.NoTargets">
+  <Import Project="../ToolsetsVersion.props" />
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <PackageId>MacOSX.SDK</PackageId>
+    <Version>$(MacOSXSDKVersion).$(Revision)</Version>
+    <Authors>Apple Inc.;DotNet-AGPL</Authors>
+    <Company>DotNet-AGPL</Company>
+    <Description>Filtered macOS SDK $(MacOSXSDKVersion) (from joseluisq/macosx-sdks) for cross-compiling Native AOT to osx-arm64 from non-macOS hosts.</Description>
+    <PackageProjectUrl>https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/MacOSX.SDK</PackageProjectUrl>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include=".macosx-sdk-tmp/**/*" Pack="true" PackagePath="tools/.macosx-sdk" />
+    <None Include="build/MacOSX.SDK.props" Pack="true" PackagePath="buildTransitive" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../NOTICE" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

@@ -14,7 +14,7 @@ by supplying self-contained toolchains for two scenarios:
 
 | Toolchain (`CustomAotToolChain`) | Targets | Mechanism |
 | --- | --- | --- |
-| **`zig`** | `linux-x64`, `linux-arm64`, `linux-musl-*`, `osx-*` | [Zig](https://ziglang.org/) as linker/sysroot; `clang`/`gcc`/`objcopy` are Zig wrappers |
+| **`zig`** | `linux-x64`, `linux-arm64`, `linux-musl-*`, `osx-arm64` | [Zig](https://ziglang.org/) as linker; `clang`/`gcc`/`objcopy` are Zig wrappers. `osx-arm64` additionally needs a macOS SDK (supplied by the `MacOSX.SDK` package) |
 | **`xwin`** | `win-x64`, `win-arm64` | Windows SDK store (xwin) + bundled `lld-link` + Zig as C compiler |
 
 The toolchain is selected automatically at build time by
@@ -39,17 +39,19 @@ src/
 
 toolsets/                            Platform helper packages (referenced by main package)
 ├── ToolsetsVersion.props            ZigVersion=0.17.0.1, XWinVersion=0.10.0,
-│                                    LLDVersion=23.1.3, Revision=9
+│                                    LLDVersion=23.1.3, MacOSXSDKVersion=26.1, Revision=9
 ├── XWin.Store.x64 / arm64           Filtered Windows SDK/CRT store (content gitignored)
+├── MacOSX.SDK                       Filtered macOS SDK subset for osx-arm64 (content gitignored)
 ├── LLD.Link.Toolsets.*              lld-link binaries (win-x64/arm64, linux-x64/arm64, osx-arm64)
 ├── download-xwin-store.ps1          Regenerate the Windows SDK store (admin + network)
-└── download-lld-link.ps1            Re-extract lld-link from LLVM release archives
+├── download-lld-link.ps1            Re-extract lld-link from LLVM release archives
+└── download-macosx-sdk.ps1          Download + filter the macOS SDK (osx-arm64)
 
 test/
 ├── TestPublish/TestNupkg.csproj     Cross-compilation validation (net8/9/10, multi-RID)
 └── ConsoleApp/ConsoleApp.csproj     Console cross-compilation sample
 
-.github/workflows/main.yml           CI (cross-compile + validate; manual release)
+.github/workflows/main.yml           CI (cross-compile win/linux/macos + validate)
 ```
 
 ## Build & Test Commands

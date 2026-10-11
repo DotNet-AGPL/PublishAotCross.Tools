@@ -35,7 +35,6 @@ If you don't want to use Zig from the Vezel.Zig.Toolsets NuGet package, you can 
     * `dotnet publish -r linux-arm64`
     * `dotnet publish -r linux-musl-x64`
     * `dotnet publish -r linux-musl-arm64`
-    * `dotnet publish -r osx-x64`
     * `dotnet publish -r osx-arm64`
 
     If you skipped the second optional step to download llvm-objcopy, you must also pass `/p:StripSymbols=false` to the publish command, or you'll see an error instructing you to do that.
@@ -43,6 +42,8 @@ If you don't want to use Zig from the Vezel.Zig.Toolsets NuGet package, you can 
     You can specify a custom glibc version via `/p:GlibcVersion=<version>` (e.g. `2.35`). This appends the version suffix to the target triple (e.g. `x86_64-linux-gnu.2.35`).
 
 This package also supports Windows-to-Windows Native AOT compilation without Visual Studio C++ tools, using xwin SDK store + lld-link + Zig toolchain.
+
+Cross-compiling to `osx-arm64` from Windows/Linux is supported: the `MacOSX.SDK` package (referenced automatically) supplies a filtered macOS SDK subset, and Zig performs the linking. No macOS machine is required.
 
 #### XWin
 

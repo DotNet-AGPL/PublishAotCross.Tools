@@ -22,6 +22,7 @@
     <PackageReference Include="Vezel.Zig.Toolsets.osx-arm64" Version="$(ZigVersion)" GeneratePathProperty="true" />
     <PackageReference Include="XWin.Store.x64" Version="$(XWinVersion).$(Revision)" />
     <PackageReference Include="XWin.Store.arm64" Version="$(XWinVersion).$(Revision)" />
+    <PackageReference Include="MacOSX.SDK" Version="$(MacOSXSDKVersion).$(Revision)" />
     <PackageReference Include="LLD.Link.Toolsets.win-x64" Version="$(LLDVersion).$(Revision)" />
     <PackageReference Include="LLD.Link.Toolsets.linux-x64" Version="$(LLDVersion).$(Revision)" />
     <PackageReference Include="LLD.Link.Toolsets.win-arm64" Version="$(LLDVersion).$(Revision)" />

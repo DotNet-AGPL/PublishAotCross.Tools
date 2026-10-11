@@ -20,6 +20,12 @@ LLVM / lld (the `lld-link` binaries bundled in the LLD.Link.Toolsets.* packages)
   Full license text ships with each LLD.Link.Toolsets.* package as `LICENSE`.
 
 ---------------------------------------------------------------------------
+macOS SDK (the filtered SDK subset bundled in the MacOSX.SDK package)
+  The SDK content is sourced from Apple Xcode (via joseluisq/macosx-sdks) and is
+  subject to Apple's Xcode license terms:
+  https://www.apple.com/legal/sla/docs/xcode.pdf
+
+---------------------------------------------------------------------------
 Microsoft Windows SDK and Visual C++ Redistributable import libraries
 (the CRT/SDK import libraries bundled in the XWin.Store.* packages)
   Copyright (c) Microsoft Corporation.

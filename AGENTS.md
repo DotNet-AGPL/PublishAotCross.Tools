@@ -25,18 +25,26 @@ toolsets/
 ├── LLD.Link.Toolsets.osx-arm64/        ← lld-link NuGet 包（macOS ARM64）
 │   ├── LLD.Link.Toolsets.osx-arm64.nuproj
 │   └── tools/lld-link.zip
+├── MacOSX.SDK/                          ← 过滤后的 macOS SDK NuGet 包（交叉到 osx-arm64）
+│   ├── MacOSX.SDK.nuproj
+│   └── .macosx-sdk-tmp/                 ← 过滤后的 SDK 子集（gitignored）
 ├── LLVM-Source/                        ← 各平台 LLVM 二进制包（提取 lld-link 的来源）
-├── ToolsetsVersion.props                ← XWinVersion=0.10.0, LLDVersion=23.1.3, Revision=9
+├── ToolsetsVersion.props                ← XWinVersion=0.10.0, LLDVersion=23.1.3, MacOSXSDKVersion=26.1, Revision=9
 ├── xwin.exe                             ← xwin CLI v$(XWinVersion)（仅供维护者更新 store，不打包进 NuGet）
 ├── download-xwin-store.ps1              ← 下载 xwin SDK store（x64 + arm64 过滤打包到各自平台包）
-└── download-lld-link.ps1                ← 从 LLVM 安装包提取各平台 lld-link（支持 -Linux 参数）
+├── download-lld-link.ps1                ← 从 LLVM 安装包提取各平台 lld-link
+└── download-macosx-sdk.ps1              ← 下载 + 过滤 macOS SDK（osx-arm64 交叉用）
 
 src/
 ├── PublishAotCross.Tools.nuproj    ← 主 NuGet 包
-├── Crosscompile.targets                 ← xwin/zig 链路核心
-├── Scripts/SetPath.cs                   ← 工具链选择逻辑
-├── PublishAotCross.Tools.props     ← 自动导入（NuGet convention）
-└── PublishAotCross.Tools.targets   ← 自动导入
+├── download-llvm-objcopy.ps1            ← 维护者用（不打包）
+└── build/                               ← 内容镜像包内 build/
+    ├── PublishAotCross.Tools.props      ← 自动导入（NuGet convention）
+    ├── PublishAotCross.Tools.targets    ← 自动导入
+    ├── Crosscompile.targets             ← xwin/zig 链路核心
+    ├── clang / clang.cmd / clang.ps1    ← Zig 编译器包装
+    ├── gcc / objcopy / llvm-objcopy.exe
+    └── Scripts/SetPath.cs               ← 工具链选择逻辑
 
 test/
 ├── AvaloniaApp/                         ← Avalonia + Native AOT 验证 (ACadSharp DWG 文本提取)
