@@ -33,7 +33,7 @@ if ($env:MACOSX_SDK -and (($zigArgs -join ' ') -match 'macos|apple')) {
     '-F', "$sdk/System/Library/Frameworks",
     '-F', "$sdk/System/Library/PrivateFrameworks",
     '-L', "$sdk/usr/lib",
-    '-L', "$sdk/usr/lib/swift/macosx"
+    '-L', "$sdk/usr/lib/swift"
   ) + $zigArgs
 }
 

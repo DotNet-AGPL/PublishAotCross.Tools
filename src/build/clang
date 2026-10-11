@@ -36,7 +36,7 @@ if [ -n "$MACOSX_SDK" ] && echo " $args " | grep -qE 'macos|apple'; then
        "-F" "$MACOSX_SDK/System/Library/Frameworks" \
        "-F" "$MACOSX_SDK/System/Library/PrivateFrameworks" \
        "-L" "$MACOSX_SDK/usr/lib" \
-       "-L" "$MACOSX_SDK/usr/lib/swift/macosx" \
+       "-L" "$MACOSX_SDK/usr/lib/swift" \
        "${arr[@]}")
 fi
 
