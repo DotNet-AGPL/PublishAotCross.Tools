@@ -6,6 +6,11 @@
     <HostRuntimeIdentifier Condition="'$(HostRuntimeIdentifier)' == ''">$(NETCoreSdkPortableRuntimeIdentifier)</HostRuntimeIdentifier>
     <UseExternalZig Condition="'$(UseExternalZig)' == ''">false</UseExternalZig>
     <GlibcVersion Condition="'$(GlibcVersion)' == ''" />
+
+    <!-- macOS SDK root for cross-compiling to osx. Set via the MacOSXSDKDir
+         property (e.g. supplied by the MacOSX.SDK package) or the MACOSX_SDK
+         environment variable; the clang wrapper consumes it as MACOSX_SDK. -->
+    <MacOSXSDKDir Condition="'$(MacOSXSDKDir)' == ''">$(MACOSX_SDK)</MacOSXSDKDir>
   </PropertyGroup>
 
   <UsingTask TaskName="PrependPathIfCrossCompile"
@@ -18,6 +23,7 @@
       <ZigPath ParameterType="System.String" Required="true" />
       <AotPreferCustom ParameterType="System.Boolean" Required="true" />
       <UseExternalZig ParameterType="System.Boolean" Required="true" />
+      <MacOSXSDKDir ParameterType="System.String" Required="false" />
       <!-- Out Variables -->
       <CustomAotToolChain ParameterType="System.String" Output="true"/>
     </ParameterGroup>
@@ -56,7 +62,8 @@
       RuntimeIdentifier="$(RuntimeIdentifier)"
       ZigPath="$(ZigPath)"
       AotPreferCustom="$(AotPreferCustom)"
-      UseExternalZig="$(UseExternalZig)">
+      UseExternalZig="$(UseExternalZig)"
+      MacOSXSDKDir="$(MacOSXSDKDir)">
       <Output TaskParameter="CustomAotToolChain" PropertyName="CustomAotToolChain"/>
     </PrependPathIfCrossCompile>
 

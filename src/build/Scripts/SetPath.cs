@@ -4,6 +4,13 @@ if (!UseExternalZig) {
   Environment.SetEnvironmentVariable("PATH", ZigPath + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH"));
 }
 
+// Expose the macOS SDK root (if any) to the clang/gcc wrappers, which use it to
+// cross-compile to osx. The value comes from the MacOSXSDKDir property (which
+// defaults to the MACOSX_SDK environment variable).
+if (!string.IsNullOrEmpty(MacOSXSDKDir)) {
+  Environment.SetEnvironmentVariable("MACOSX_SDK", MacOSXSDKDir);
+}
+
 var buildenv = "";
 var isHostWindows = false;
 var isTargetingWindows = RuntimeIdentifier.StartsWith("win");
