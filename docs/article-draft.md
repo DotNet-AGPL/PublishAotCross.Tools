@@ -1,6 +1,6 @@
 # PublishAotCross.Tools：让 .NET 应用的跨平台 AOT 交叉编译变得简单
 
-> 一条命令构建全平台，无需为每个平台准备构建机
+> 开箱即用：一条命令构建全平台，无需为每个平台准备构建机
 
 ## 一、痛点：一行红字拦住了整个发布流程
 
@@ -41,19 +41,19 @@ error : Cross-OS native compilation is not supported.
 
 **手动配置交叉编译工具链**：能行，但要自己下载编译器、配环境变量、管版本，CI 里还得维护一堆脚本。
 
-共同点：**都不够"开箱即用"**。
+共同点：**都不够“开箱即用”**。
 
 ## 四、解药：PublishAotCross.Tools
 
 `PublishAotCross.Tools` 是一个 NuGet 包。加上它，你就能**在一台机器上，用自己的 `dotnet publish`，直接产出所有目标平台的 Native AOT 二进制**。
 
-- 不用装 Visual Studio
-- 不用装 extra 编译器
+- 不用装 Visual Studio C++ 工具链
+- 不用装额外的编译器
 - 不用 Docker
 - 不用管理员权限
 - 甚至**不用 Mac**，也能产出 macOS（Apple Silicon）的产物
 
-一切工具链都随 NuGet 包自动就位。
+加一个包引用就行。
 
 ```mermaid
 flowchart LR
@@ -108,12 +108,12 @@ flowchart LR
 ```
 
 支持 `.NET 8 / 9 / 10`，`<TargetFramework>` 按你的项目填即可。
-`<DebugType>none</DebugType>` 表示不保留调试符号；符号剥离由包内自带的 `llvm-objcopy` 自动完成，无需手工设置，产物已很精简。
+`<DebugType>none</DebugType>` 表示不保留调试符号；符号剥离会自动完成，无需手工设置，产物已很精简。
 
 ### 第 2 步：想构建哪个平台，就敲哪条命令
 
 ```bash
-# Windows（无需 Visual Studio）
+# Windows（无需 C++ 工具链）
 dotnet publish -c Release -r win-x64
 dotnet publish -c Release -r win-arm64
 
@@ -133,6 +133,8 @@ dotnet publish -c Release -r osx-arm64
 
 > 这些命令在 Windows、Linux、macOS 上任一宿主都能跑。比如在 Linux CI 上执行 `-r osx-arm64`，就能直接得到可在 Apple Silicon 运行的二进制。
 
+**习惯用 IDE 也行**：在 Visual Studio（如 VS2026）里，把发布配置的**目标运行时**选成对应 RID，直接点「发布」即可，效果与命令行一致。
+
 ## 六、支持的平台
 
 | 宿主 \ 目标 | win-x64 | win-arm64 | linux-x64 | linux-arm64 | linux-musl-x64 | linux-musl-arm64 | osx-arm64 |
@@ -143,13 +145,13 @@ dotnet publish -c Release -r osx-arm64
 | **Linux arm64** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **macOS arm64** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
-一句话：**任选一台 Windows 或 Linux 机器，就能产出全部目标平台的产物**（含 macOS arm64），无需 Mac。
+一句话：**任选一台机器（Windows、Linux 或 macOS），就能产出全部目标平台的产物**；即便是 macOS arm64 产物，也**不需要 Mac**。
 
 ## 七、常用参数
 
 - **兼容旧 Linux 发行版**：`/p:GlibcVersion=2.35`（指定 glibc 版本）
-- **剥离符号**：非 Windows 目标**默认开启**（包内自带多格式 `llvm-objcopy`）；如需保留符号可加 `/p:StripSymbols=false`
-- **改回系统原生工具链**：`-p:AotPreferCustom=false`（默认用包内置工具链，保证环境一致）
+- **剥离符号**：非 Windows 目标**默认开启**；如需保留符号可加 `/p:StripSymbols=false`
+- **指定使用系统原生工具链**：`/p:AotPreferCustom=false`
 
 ## 八、在 CI 里就一条命令
 
@@ -199,17 +201,14 @@ jobs:
 可以，无需额外签名。
 
 **Q：对构建机有什么要求？**
-安装 .NET SDK 即可，无其他编译依赖（无需 Visual Studio、C++ 工具链或 Docker）。工具链随 NuGet 包自动就位，`dotnet restore` 时解压即可。
-
-**Q：不想用内置工具链怎么办？**
-加 `-p:AotPreferCustom=false`，回退到系统原生工具链。
+安装 .NET SDK 即可，无其他编译依赖（无需 Visual Studio 的 C++ 工具链或 Docker）。
 
 **Q：支持哪些 .NET 版本和 RID？**
 .NET 8+；目标 RID 见上面的支持矩阵。
 
 ## 十、试试看
 
-如果你的项目也在为"发布多个平台"头疼，尤其是"要出 macOS 就得有台 Mac"这件事——
+如果你的项目也在为“发布多个平台”头疼，尤其是“要出 macOS 就得有台 Mac”这件事——
 
 **加一个 NuGet 包，把 `.csproj` 里的 RID 列表补上，然后敲一条 `dotnet publish` 就好了。**
 

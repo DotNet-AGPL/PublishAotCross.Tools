@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PublishAotCross.Tools</title>
+</head>
+<body style="margin:0;padding:0;background:#ffffff;">
+<section id="w" style="font-size: 16px; line-height: 1.75; color: #333; word-break: break-word; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+<h1 style="font-size: 22px; font-weight: 700; line-height: 1.4; margin: 0 0 18px;">PublishAotCross.Tools：让 .NET 应用的跨平台 AOT 交叉编译变得简单</h1>
+<blockquote style="margin: 0 0 16px; padding: 10px 14px; background: #f6f8fa; border-left: 4px solid #d0d7de; color: #57606a;">
+<p style="margin: 0;">开箱即用：一条命令构建全平台，无需为每个平台准备构建机</p>
+</blockquote>
+<h2 style="font-size: 19px; font-weight: 700; line-height: 1.4; margin: 30px 0 14px; padding: 3px 0 3px 10px; border-left: 4px solid #1f6feb;">一、痛点：一行红字拦住了整个发布流程</h2>
+<p style="margin: 0 0 16px;">你用 .NET 写了个服务，开启了 Native AOT，想要极致启动速度和单文件部署。现在要把产物发到多个平台：Windows、Linux，还有 macOS。</p>
+<p style="margin: 0 0 16px;">于是你在 CI 里写下：</p>
+<pre style="background: #f6f8fa; border: 1px solid #eaecef; border-radius: 6px; padding: 12px 14px; margin: 0 0 16px; overflow-x: auto;"><code style="font-family: Consolas, Monaco, 'Courier New', monospace; background: transparent; color: #24292f; padding: 0; border-radius: 0; font-size: 13px; line-height: 1.6; white-space: pre;">dotnet publish -c Release -r linux-x64
+</code></pre>
+<p style="margin: 0 0 16px;">结果迎面一行红字：</p>
+<pre style="background: #f6f8fa; border: 1px solid #eaecef; border-radius: 6px; padding: 12px 14px; margin: 0 0 16px; overflow-x: auto;"><code style="font-family: Consolas, Monaco, 'Courier New', monospace; background: transparent; color: #24292f; padding: 0; border-radius: 0; font-size: 13px; line-height: 1.6; white-space: pre;">error : Cross-OS native compilation is not supported.
+</code></pre>
+<p style="margin: 0 0 16px;">翻文档才知道：Native AOT 依赖每个操作系统的原生链接器，微软官方<strong style="font-weight: 700;">只支持同平台构建</strong>——Windows 上只能构建 Windows，Linux 上只能构建 Linux。想跨平台？要么为每个平台准备一台构建机，要么自己折腾交叉编译工具链。</p>
+<p style="margin: 0 0 16px;">如果你也被这个问题卡过，这篇文章就是为你准备的。</p>
+<h2 style="font-size: 19px; font-weight: 700; line-height: 1.4; margin: 30px 0 14px; padding: 3px 0 3px 10px; border-left: 4px solid #1f6feb;">二、为什么 Native AOT 值得你忍受这些</h2>
+<p style="margin: 0 0 16px;">先说为什么大家还是想用 Native AOT：</p>
+<ul style="margin: 0 0 16px; padding-left: 24px;">
+<li style="margin: 0 0 8px;"><strong style="font-weight: 700;">启动极快</strong>：无需 JIT 预热，毫秒级启动</li>
+<li style="margin: 0 0 8px;"><strong style="font-weight: 700;">内存更低</strong>：没有 JIT 堆和运行时元数据</li>
+<li style="margin: 0 0 8px;"><strong style="font-weight: 700;">单文件部署</strong>：一个本机可执行文件，自包含、无需安装运行时</li>
+<li style="margin: 0 0 8px;"><strong style="font-weight: 700;">体积更小</strong>：未使用的代码被裁剪掉</li>
+</ul>
+<p style="margin: 0 0 16px;">代价就是开头那个报错：它的跨平台能力先天不足。</p>
+<h2 style="font-size: 19px; font-weight: 700; line-height: 1.4; margin: 30px 0 14px; padding: 3px 0 3px 10px; border-left: 4px solid #1f6feb;">三、你可能试过的办法，以及它们的问题</h2>
+<p style="margin: 0 0 16px;"><strong style="font-weight: 700;">装 Visual Studio C++ 工具链</strong>：只能在 Windows 上用，安装包 5GB+，CI 里装它最重。</p>
+<p style="margin: 0 0 16px;"><strong style="font-weight: 700;">用 Docker 交叉构建</strong>：配置繁琐、每次拉镜像、不适合 Windows 目标，也搞不定 macOS。</p>
+<p style="margin: 0 0 16px;"><strong style="font-weight: 700;">手动配置交叉编译工具链</strong>：能行，但要自己下载编译器、配环境变量、管版本，CI 里还得维护一堆脚本。</p>
+<p style="margin: 0 0 16px;">共同点：<strong style="font-weight: 700;">都不够“开箱即用”</strong>。</p>
+<h2 style="font-size: 19px; font-weight: 700; line-height: 1.4; margin: 30px 0 14px; padding: 3px 0 3px 10px; border-left: 4px solid #1f6feb;">四、解药：PublishAotCross.Tools</h2>
+<p style="margin: 0 0 16px;"><code style="background: #f2f4f7; color: #c7254e; padding: 2px 5px; border-radius: 4px; font-size: 14px; font-family: Consolas, Monaco, 'Courier New', monospace;">PublishAotCross.Tools</code> 是一个 NuGet 包。加上它，你就能<strong style="font-weight: 700;">在一台机器上，用自己的 <code style="background: #f2f4f7; color: #c7254e; padding: 2px 5px; border-radius: 4px; font-size: 14px; font-family: Consolas, Monaco, 'Courier New', monospace;">dotnet publish</code>，直接产出所有目标平台的 Native AOT 二进制</strong>。</p>
+<ul style="margin: 0 0 16px; padding-left: 24px;">
+<li style="margin: 0 0 8px;">不用装 Visual Studio C++ 工具链</li>
+<li style="margin: 0 0 8px;">不用装额外的编译器</li>
+<li style="margin: 0 0 8px;">不用 Docker</li>
+<li style="margin: 0 0 8px;">不用管理员权限</li>
+<li style="margin: 0 0 8px;">甚至<strong style="font-weight: 700;">不用 Mac</strong>，也能产出 macOS（Apple Silicon）的产物</li>
+</ul>
+<p style="margin: 0 0 16px;">加一个包引用就行。</p>
+<p style="margin: 0 0 16px;"><img src="article-wechat-diagram.png" alt="PublishAotCross.Tools：任选一台构建机，一条命令产出各平台 Native AOT 产物" style="max-width: 100%; height: auto; display: block; margin: 0 auto 16px;" height="auto"></p>
+<blockquote style="margin: 0 0 16px; padding: 10px 14px; background: #f6f8fa; border-left: 4px solid #d0d7de; color: #57606a;">
+<p style="margin: 0;">任选一台构建机（Windows / Linux / macOS）→ 一条 <code style="color: #c7254e; padding: 2px 5px; border-radius: 4px; font-size: 14px; font-family: Consolas, Monaco, 'Courier New', monospace; background: #eaecef;">dotnet publish -r &lt;rid&gt;</code> → 产出 Windows、Linux（glibc / musl）、macOS 的 Native AOT 产物。</p>
+</blockquote>
+<h2 style="font-size: 19px; font-weight: 700; line-height: 1.4; margin: 30px 0 14px; padding: 3px 0 3px 10px; border-left: 4px solid #1f6feb;">五、3 分钟上手</h2>
+<h3 style="font-size: 17px; font-weight: 700; line-height: 1.4; margin: 22px 0 12px;">第 1 步：加一个包引用</h3>
+<p style="margin: 0 0 16px;">在已经开启 Native AOT 的项目里：</p>
+<pre style="background: #f6f8fa; border: 1px solid #eaecef; border-radius: 6px; padding: 12px 14px; margin: 0 0 16px; overflow-x: auto;"><code class="language-xml" style="font-family: Consolas, Monaco, 'Courier New', monospace; background: transparent; color: #24292f; padding: 0; border-radius: 0; font-size: 13px; line-height: 1.6; white-space: pre;">&lt;Project Sdk=&quot;Microsoft.NET.Sdk&quot;&gt;
+  &lt;PropertyGroup&gt;
+    &lt;OutputType&gt;Exe&lt;/OutputType&gt;
+    &lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;
+    &lt;PublishAot&gt;true&lt;/PublishAot&gt;
+    &lt;InvariantGlobalization&gt;true&lt;/InvariantGlobalization&gt;
+    &lt;RuntimeIdentifiers&gt;win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;linux-musl-arm64;osx-arm64&lt;/RuntimeIdentifiers&gt;
+  &lt;/PropertyGroup&gt;
+
+  &lt;PropertyGroup&gt;
+    &lt;DebugType&gt;none&lt;/DebugType&gt;
+  &lt;/PropertyGroup&gt;
+
+  &lt;ItemGroup&gt;
+    &lt;PackageReference Include=&quot;PublishAotCross.Tools&quot; Version=&quot;1.0.1.13&quot; /&gt;
+  &lt;/ItemGroup&gt;
+&lt;/Project&gt;
+</code></pre>
+<p style="margin: 0 0 16px;">支持 <code style="background: #f2f4f7; color: #c7254e; padding: 2px 5px; border-radius: 4px; font-size: 14px; font-family: Consolas, Monaco, 'Courier New', monospace;">.NET 8 / 9 / 10</code>，<code style="background: #f2f4f7; color: #c7254e; padding: 2px 5px; border-radius: 4px; font-size: 14px; font-family: Consolas, Monaco, 'Courier New', monospace;">&lt;TargetFramework&gt;</code> 按你的项目填即可。
+<code style="background: #f2f4f7; color: #c7254e; padding: 2px 5px; border-radius: 4px; font-size: 14px; font-family: Consolas, Monaco, 'Courier New', monospace;">&lt;DebugType&gt;none&lt;/DebugType&gt;</code> 表示不保留调试符号；符号剥离会自动完成，无需手工设置，产物已很精简。</p>
+<h3 style="font-size: 17px; font-weight: 700; line-height: 1.4; margin: 22px 0 12px;">第 2 步：想构建哪个平台，就敲哪条命令</h3>
+<pre style="background: #f6f8fa; border: 1px solid #eaecef; border-radius: 6px; padding: 12px 14px; margin: 0 0 16px; overflow-x: auto;"><code class="language-bash" style="font-family: Consolas, Monaco, 'Courier New', monospace; background: transparent; color: #24292f; padding: 0; border-radius: 0; font-size: 13px; line-height: 1.6; white-space: pre;"># Windows（无需 C++ 工具链）
+dotnet publish -c Release -r win-x64
+dotnet publish -c Release -r win-arm64
+
+# Linux（glibc）
+dotnet publish -c Release -r linux-x64
+dotnet publish -c Release -r linux-arm64
+
+# Linux（musl / Alpine）
+dotnet publish -c Release -r linux-musl-x64
+dotnet publish -c Release -r linux-musl-arm64
+
+# macOS（Apple Silicon）—— 不需要 Mac
+dotnet publish -c Release -r osx-arm64
+</code></pre>
+<p style="margin: 0 0 16px;">就这些。全部在本机完成，不用切系统、不用装工具链。</p>
+<blockquote style="margin: 0 0 16px; padding: 10px 14px; background: #f6f8fa; border-left: 4px solid #d0d7de; color: #57606a;">
+<p style="margin: 0;">这些命令在 Windows、Linux、macOS 上任一宿主都能跑。比如在 Linux CI 上执行 <code style="color: #c7254e; padding: 2px 5px; border-radius: 4px; font-size: 14px; font-family: Consolas, Monaco, 'Courier New', monospace; background: #eaecef;">-r osx-arm64</code>，就能直接得到可在 Apple Silicon 运行的二进制。</p>
+</blockquote>
+<p style="margin: 0 0 16px;"><strong style="font-weight: 700;">习惯用 IDE 也行</strong>：在 Visual Studio（如 VS2026）里，把发布配置的<strong style="font-weight: 700;">目标运行时</strong>选成对应 RID，直接点「发布」即可，效果与命令行一致。</p>
+<h2 style="font-size: 19px; font-weight: 700; line-height: 1.4; margin: 30px 0 14px; padding: 3px 0 3px 10px; border-left: 4px solid #1f6feb;">六、支持的平台</h2>
+<p style="margin: 0 0 16px;"><strong style="font-weight: 700;">任一宿主都能产出全部目标平台：</strong></p>
+<table style="border-collapse: collapse; width: 100%; margin: 0 0 16px; font-size: 14px;" width="100%">
+<thead>
+<tr>
+<th style="border: 1px solid #d0d7de; padding: 6px 10px; text-align: left; vertical-align: top; background: #f6f8fa; font-weight: 700;" align="left" valign="top">构建机（宿主）</th>
+<th style="border: 1px solid #d0d7de; padding: 6px 10px; text-align: left; vertical-align: top; background: #f6f8fa; font-weight: 700;" align="left" valign="top">可产出的目标平台</th>
+</tr>
+</thead>
+<tbody><tr>
+<td style="border: 1px solid #d0d7de; padding: 6px 10px; text-align: left; vertical-align: top;" align="left" valign="top">Windows x64 / arm64</td>
+<td style="border: 1px solid #d0d7de; padding: 6px 10px; text-align: left; vertical-align: top;" align="left" valign="top">Windows x64/arm64 · Linux glibc x64/arm64 · Linux musl x64/arm64 · macOS arm64</td>
+</tr>
+<tr>
+<td style="border: 1px solid #d0d7de; padding: 6px 10px; text-align: left; vertical-align: top;" align="left" valign="top">Linux x64 / arm64</td>
+<td style="border: 1px solid #d0d7de; padding: 6px 10px; text-align: left; vertical-align: top;" align="left" valign="top">同上</td>
+</tr>
+<tr>
+<td style="border: 1px solid #d0d7de; padding: 6px 10px; text-align: left; vertical-align: top;" align="left" valign="top">macOS arm64</td>
+<td style="border: 1px solid #d0d7de; padding: 6px 10px; text-align: left; vertical-align: top;" align="left" valign="top">同上</td>
+</tr>
+</tbody></table>
+<p style="margin: 0 0 16px;">一句话：<strong style="font-weight: 700;">任选一台机器（Windows、Linux 或 macOS），就能产出全部目标平台的产物</strong>；即便是 macOS arm64 产物，也<strong style="font-weight: 700;">不需要 Mac</strong>。</p>
+<h2 style="font-size: 19px; font-weight: 700; line-height: 1.4; margin: 30px 0 14px; padding: 3px 0 3px 10px; border-left: 4px solid #1f6feb;">七、常用参数</h2>
+<ul style="margin: 0 0 16px; padding-left: 24px;">
+<li style="margin: 0 0 8px;"><strong style="font-weight: 700;">兼容旧 Linux 发行版</strong>：<code style="background: #f2f4f7; color: #c7254e; padding: 2px 5px; border-radius: 4px; font-size: 14px; font-family: Consolas, Monaco, 'Courier New', monospace;">/p:GlibcVersion=2.35</code>（指定 glibc 版本）</li>
+<li style="margin: 0 0 8px;"><strong style="font-weight: 700;">剥离符号</strong>：非 Windows 目标<strong style="font-weight: 700;">默认开启</strong>；如需保留符号可加 <code style="background: #f2f4f7; color: #c7254e; padding: 2px 5px; border-radius: 4px; font-size: 14px; font-family: Consolas, Monaco, 'Courier New', monospace;">/p:StripSymbols=false</code></li>
+<li style="margin: 0 0 8px;"><strong style="font-weight: 700;">指定使用系统原生工具链</strong>：<code style="background: #f2f4f7; color: #c7254e; padding: 2px 5px; border-radius: 4px; font-size: 14px; font-family: Consolas, Monaco, 'Courier New', monospace;">/p:AotPreferCustom=false</code></li>
+</ul>
+<h2 style="font-size: 19px; font-weight: 700; line-height: 1.4; margin: 30px 0 14px; padding: 3px 0 3px 10px; border-left: 4px solid #1f6feb;">八、在 CI 里就一条命令</h2>
+<p style="margin: 0 0 16px;">以 GitHub Actions 为例，<strong style="font-weight: 700;">一个 runner 就能打包全部平台，连 Mac 都不用</strong>：</p>
+<pre style="background: #f6f8fa; border: 1px solid #eaecef; border-radius: 6px; padding: 12px 14px; margin: 0 0 16px; overflow-x: auto;"><code class="language-yaml" style="font-family: Consolas, Monaco, 'Courier New', monospace; background: transparent; color: #24292f; padding: 0; border-radius: 0; font-size: 13px; line-height: 1.6; white-space: pre;">name: Publish Native AOT
+
+on:
+  push:
+    tags: [ &#39;v*&#39; ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rid:
+          - win-x64
+          - win-arm64
+          - linux-x64
+          - linux-arm64
+          - linux-musl-x64
+          - linux-musl-arm64
+          - osx-arm64
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish for ${{ matrix.rid }}
+        run: dotnet publish -c Release -r ${{ matrix.rid }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ matrix.rid }}
+          path: bin/Release/net10.0/${{ matrix.rid }}/publish/
+</code></pre>
+<p style="margin: 0 0 16px;">不用为每个平台准备构建机，不用装 VS，不用维护 Docker 镜像，<strong style="font-weight: 700;">也不用排队等 macOS runner</strong>。</p>
+<h2 style="font-size: 19px; font-weight: 700; line-height: 1.4; margin: 30px 0 14px; padding: 3px 0 3px 10px; border-left: 4px solid #1f6feb;">九、常见问题</h2>
+<p style="margin: 0 0 16px;"><strong style="font-weight: 700;">Q：macOS 产物在 Apple Silicon 上能直接跑吗？</strong>
+可以，无需额外签名。</p>
+<p style="margin: 0 0 16px;"><strong style="font-weight: 700;">Q：对构建机有什么要求？</strong>
+安装 .NET SDK 即可，无其他编译依赖（无需 Visual Studio 的 C++ 工具链或 Docker）。</p>
+<p style="margin: 0 0 16px;"><strong style="font-weight: 700;">Q：支持哪些 .NET 版本和 RID？</strong>
+.NET 8+；目标 RID 见上面的支持矩阵。</p>
+<h2 style="font-size: 19px; font-weight: 700; line-height: 1.4; margin: 30px 0 14px; padding: 3px 0 3px 10px; border-left: 4px solid #1f6feb;">十、试试看</h2>
+<p style="margin: 0 0 16px;">如果你的项目也在为“发布多个平台”头疼，尤其是“要出 macOS 就得有台 Mac”这件事——</p>
+<p style="margin: 0 0 16px;"><strong style="font-weight: 700;">加一个 NuGet 包，把 <code style="background: #f2f4f7; color: #c7254e; padding: 2px 5px; border-radius: 4px; font-size: 14px; font-family: Consolas, Monaco, 'Courier New', monospace;">.csproj</code> 里的 RID 列表补上，然后敲一条 <code style="background: #f2f4f7; color: #c7254e; padding: 2px 5px; border-radius: 4px; font-size: 14px; font-family: Consolas, Monaco, 'Courier New', monospace;">dotnet publish</code> 就好了。</strong></p>
+<ul style="margin: 0 0 16px; padding-left: 24px;">
+<li style="margin: 0 0 8px;">GitHub：<strong style="font-weight: 700;">DotNet-AGPL/PublishAotCross.Tools</strong>（点文末「阅读原文」）</li>
+<li style="margin: 0 0 8px;">安装：<code style="background: #f2f4f7; color: #c7254e; padding: 2px 5px; border-radius: 4px; font-size: 14px; font-family: Consolas, Monaco, 'Courier New', monospace;">dotnet add package PublishAotCross.Tools</code></li>
+<li style="margin: 0 0 8px;">基于 <strong style="font-weight: 700;">Apache-2.0</strong> 许可，可自由用于商业与闭源项目</li>
+</ul>
+<p style="margin: 0 0 16px;">欢迎 Star、提 Issue、提 PR。祝构建顺利。</p>
+
+</section>
+</body>
+</html>
