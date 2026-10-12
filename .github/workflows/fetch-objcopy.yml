@@ -34,7 +34,7 @@ jobs:
           set -euo pipefail
           v="${{ inputs.version }}"
           if [ -z "$v" ]; then
-            v=$(grep -oP '(?<=<LLDVersion>)[^<]+' toolsets/ToolsetsVersion.props | head -1)
+            v=$(grep -oP '<LLDVersion[^>]*>\K[^<]+' toolsets/ToolsetsVersion.props | head -1)
           fi
           [ -n "$v" ] || { echo "could not determine LLVM version"; exit 1; }
           echo "LLVM_VERSION=$v" >> "$GITHUB_ENV"

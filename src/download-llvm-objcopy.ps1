@@ -18,7 +18,7 @@ $ErrorActionPreference = "Stop"
 
 if (-not $Version) {
   $props = Join-Path $PSScriptRoot "..\toolsets\ToolsetsVersion.props"
-  $Version = [regex]::Match((Get-Content $props -Raw), '<LLDVersion>([^<]+)</LLDVersion>').Groups[1].Value
+  $Version = [regex]::Match((Get-Content $props -Raw), '<LLDVersion[^>]*>([^<]+)</LLDVersion>').Groups[1].Value
 }
 if (-not $Version) { throw "Could not determine the LLVM version (LLDVersion)" }
 
