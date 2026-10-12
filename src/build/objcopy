@@ -5,9 +5,14 @@
 # ILCompiler probes PATH for a symbol-stripping tool; when clang drives the link
 # it prefers `llvm-objcopy` and falls back to `objcopy`
 # (see Microsoft.NETCore.Native.Unix.targets). This package's build directory is
-# prepended to PATH (SetPath.cs) and contains this very file named `objcopy`, so
-# a naive `exec objcopy "$@"` resolves back to this script and spins forever.
-# Only ever exec a real tool: skip any PATH entry that is this script itself.
+# prepended to PATH (SetPath.cs) and contains this very file named `objcopy`, so:
+#
+#   * we must never exec ourselves -- that would recurse forever (the original
+#     `exec objcopy "$@"` matched this same script and hung the build), and
+#   * we must never fail the build -- the host's binutils `objcopy` is
+#     single-format and cannot strip binaries for another architecture (e.g. an
+#     aarch64 ELF on an x64 host), so a failed strip is downgraded to a warning
+#     and the symbols are simply kept.
 
 _self=$0
 if command -v readlink >/dev/null 2>&1; then
@@ -39,11 +44,20 @@ _find_real() {
   return 1
 }
 
+# llvm-objcopy understands every object format, so trust it completely.
 if _tool=$(_find_real llvm-objcopy); then
   exec "$_tool" "$@"
-elif _tool=$(_find_real objcopy); then
-  exec "$_tool" "$@"
-else
-  echo "Warning: neither llvm-objcopy nor objcopy found on PATH, skipping strip" >&2
+fi
+
+# binutils objcopy is single-format: it strips native targets but fails for
+# cross-architecture ones. Never let that break the build.
+if _tool=$(_find_real objcopy); then
+  if "$_tool" "$@" 2>/dev/null; then
+    exit 0
+  fi
+  echo "Warning: '$_tool' could not strip the binary (unsupported target format?); keeping symbols" >&2
   exit 0
 fi
+
+echo "Warning: neither llvm-objcopy nor objcopy found on PATH, skipping strip" >&2
+exit 0
