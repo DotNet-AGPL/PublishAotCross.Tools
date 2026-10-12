@@ -1,4 +1,6 @@
-# 一条命令构建全平台：.NET Native AOT 跨平台编译指南
+# PublishAotCross.Tools：让 .NET 应用的跨平台交叉编译变得简单
+
+> 一条命令构建全平台：.NET Native AOT 跨平台编译指南
 
 ## 一、痛点：一行红字拦住了整个发布流程
 
