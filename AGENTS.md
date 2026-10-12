@@ -43,7 +43,8 @@ src/
     ├── PublishAotCross.Tools.targets    ← 自动导入
     ├── Crosscompile.targets             ← xwin/zig 链路核心
     ├── clang / clang.cmd / clang.ps1    ← Zig 编译器包装
-    ├── gcc / objcopy / llvm-objcopy.exe
+    ├── gcc / objcopy                     ← Zig 包装 / objcopy 兜底 shim
+    ├── llvm-objcopy/<host-rid>/          ← 内置多格式 llvm-objcopy（随仓库提交）
     └── Scripts/SetPath.cs               ← 工具链选择逻辑
 
 test/

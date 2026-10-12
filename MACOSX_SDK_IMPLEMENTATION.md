@@ -78,7 +78,7 @@ System/Library/Frameworks/{CoreFoundation,Foundation,Security,Network,GSS,Crypto
 <_IsCrossCompilingToMacOS Condition="$(RuntimeIdentifier.StartsWith('osx')) and !$(HostRuntimeIdentifier.StartsWith('osx'))">true</_IsCrossCompilingToMacOS>
 <StripSymbols Condition="'$(StripSymbols)' == '' and '$(_IsCrossCompilingToMacOS)' == 'true'">false</StripSymbols>
 ```
-其它场景（win→linux 等）保持原生默认（Linux 目标用 `llvm-objcopy`，包内已内置）。
+其它场景（win→linux 等）保持 SDK 原生默认；剥离所需的 `llvm-objcopy` 已按宿主随包内置（`src/build/llvm-objcopy/<host-rid>/`）。
 
 ### 5. `src/build/Crosscompile.targets`
 ```xml

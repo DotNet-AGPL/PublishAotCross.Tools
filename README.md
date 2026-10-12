@@ -26,18 +26,16 @@ By default it relies on Zig provided by the unofficial [Vezel.Zig.Toolsets](http
 
 If you don't want to use Zig from the Vezel.Zig.Toolsets NuGet package, you can specify `/p:UseExternalZig=true`. This will use whatever Zig is on your PATH. [Download](https://ziglang.org/download/) an archive with Zig for your host machine, extract it and place it on your PATH.
 
-1. Optional: [download](https://releases.llvm.org/) LLVM. We only need llvm-objcopy executable so if you care about size, you can delete the rest. The executable needs to be on PATH - you could copy it next to the Zig executable. This step is optional and is required only to strip symbols (make the produced executables smaller). If you don't care about stripping symbols, you can skip it.
+1. To your project that is already using Native AOT, add a reference to `PublishAotCross.Tools`.
 
-2. To your project that is already using Native AOT, add a reference to `PublishAotCross.Tools`.
-
-3. Publish for one of the newly available RIDs:
+2. Publish for one of the newly available RIDs:
     * `dotnet publish -r linux-x64`
     * `dotnet publish -r linux-arm64`
     * `dotnet publish -r linux-musl-x64`
     * `dotnet publish -r linux-musl-arm64`
     * `dotnet publish -r osx-arm64`
 
-    If you skipped the second optional step to download llvm-objcopy, you must also pass `/p:StripSymbols=false` to the publish command, or you'll see an error instructing you to do that.
+    Symbol stripping is handled automatically: the package ships a multi-format `llvm-objcopy` for every supported host (see `src/build/llvm-objcopy/`). If no suitable strip tool is available, stripping is skipped with a warning instead of failing the build.
 
     You can specify a custom glibc version via `/p:GlibcVersion=<version>` (e.g. `2.35`). This appends the version suffix to the target triple (e.g. `x86_64-linux-gnu.2.35`).
 

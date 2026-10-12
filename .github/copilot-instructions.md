@@ -33,13 +33,13 @@ src/
     ├── PublishAotCross.Tools.targets
     ├── Crosscompile.targets         Core xwin/zig toolchain logic
     ├── clang / clang.cmd / clang.ps1  Zig wrapper (posix/Windows)
-    ├── gcc / objcopy                Zig wrapper / llvm-objcopy wrapper
-    ├── llvm-objcopy.exe             Symbol stripping helper (gitignored)
+    ├── gcc / objcopy                Zig wrapper / objcopy fallback shim (posix)
+    ├── llvm-objcopy/<host-rid>/     Bundled multi-format llvm-objcopy (committed)
     └── Scripts/SetPath.cs           Host/target detection, sets CustomAotToolChain
 
 toolsets/                            Platform helper packages (referenced by main package)
 ├── ToolsetsVersion.props            ZigVersion=0.17.0.1, XWinVersion=0.10.0,
-│                                    LLDVersion=23.1.3, MacOSXSDKVersion=26.1, Revision=9
+│                                    LLDVersion=23.1.3, MacOSXSDKVersion=26.1, Revision=12
 ├── XWin.Store.x64 / arm64           Filtered Windows SDK/CRT store (content gitignored)
 ├── MacOSX.SDK                       Filtered macOS SDK subset for osx-arm64 (content gitignored)
 ├── LLD.Link.Toolsets.*              lld-link binaries (win-x64/arm64, linux-x64/arm64, osx-arm64)
@@ -52,6 +52,7 @@ test/
 └── ConsoleApp/ConsoleApp.csproj     Console cross-compilation sample
 
 .github/workflows/main.yml           CI (cross-compile win/linux/macos + validate)
+.github/workflows/fetch-objcopy.yml  Manual: fetch bundled llvm-objcopy binaries
 ```
 
 ## Build & Test Commands
@@ -73,10 +74,12 @@ dotnet publish test/TestPublish/TestNupkg.csproj -c Release -f net10.0 -r win-ar
 
 - **License:** Apache-2.0 (`LICENSE` + `NOTICE`; `PackageLicenseExpression=Apache-2.0`).
 - **Packaging layout:** `src/build/**` maps to the package's `build/` folder.
-  Files there are packed flat via `<None Include="build/**/*" Pack="true" PackagePath="build" />`.
+  Everything there is packed via `<None Include="build/**/*" Pack="true" PackagePath="build" />`.
   `SetPath.cs` prepends the package's `build/` directory to `PATH`, so the
-  `clang`/`gcc`/`objcopy` wrappers must remain flat in `build/` (do not move them
-  into a subfolder inside the package).
+  `clang`/`gcc`/`objcopy` shims must remain flat in `build/` (do not move them
+  into a subfolder). The bundled `llvm-objcopy/<host-rid>/` binaries are the
+  exception: per-host subfolders hold the same file name in different formats,
+  and `SetPath.cs` prepends the one matching the host.
 - **Path references:** `Crosscompile.targets` loads
   `$(MSBuildThisFileDirectory)/Scripts/SetPath.cs` — keep them co-located.
 - **Multi-target publish:** any project with `TargetFrameworks` (plural) requires
