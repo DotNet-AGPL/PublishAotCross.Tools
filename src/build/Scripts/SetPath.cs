@@ -66,6 +66,19 @@ if (isTargetingWindows) {
   if (!nativeMac && (buildenv != RuntimeIdentifier || AotPreferCustom)) {
     Environment.SetEnvironmentVariable("PATH", MSBuildThisFileDirectory + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH"));
 
+    // Prefer the bundled multi-format llvm-objcopy for the AOT symbol-strip
+    // step. The host's binutils objcopy can only handle its own architecture,
+    // while llvm-objcopy can strip binaries built for any target.
+    var objcopyHost = buildenv;
+    var objcopyDir = Path.Combine(MSBuildThisFileDirectory, "llvm-objcopy", objcopyHost);
+    if (!Directory.Exists(objcopyDir) && objcopyHost == "win-arm64") {
+      // The x64 build runs on Windows arm64 hosts (emulation).
+      objcopyDir = Path.Combine(MSBuildThisFileDirectory, "llvm-objcopy", "win-x64");
+    }
+    if (Directory.Exists(objcopyDir)) {
+      Environment.SetEnvironmentVariable("PATH", objcopyDir + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH"));
+    }
+
     if (!isHostWindows) {
       var cmd = new Process();
       cmd.StartInfo.FileName = "chmod";
