@@ -76,10 +76,6 @@ jobs:
           fetch osx-arm64   "LLVM-${LLVM_VERSION}-macOS-ARM64.tar.zst"      '*/bin/llvm-objcopy'     llvm-objcopy
           fetch win-x64     "clang+llvm-${LLVM_VERSION}-x86_64-pc-windows-msvc.tar.zst" '*/bin/llvm-objcopy.exe' llvm-objcopy.exe
 
-          # Windows arm64 hosts reuse the x64 build (runs via emulation).
-          mkdir -p "$out/win-arm64"
-          cp "$out/win-x64/llvm-objcopy.exe" "$out/win-arm64/llvm-objcopy.exe"
-
       - name: Show results
         shell: bash
         run: |

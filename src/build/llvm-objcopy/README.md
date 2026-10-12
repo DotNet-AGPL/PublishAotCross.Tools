@@ -15,13 +15,15 @@ fails the build.
 
 ## Directories
 
-| Directory     | Host                 | Notes                                             |
-| ------------- | -------------------- | ------------------------------------------------- |
-| `win-x64/`    | Windows x64          |                                                   |
-| `win-arm64/`  | Windows arm64        | x64 build; runs via emulation (see `SetPath.cs`)  |
-| `linux-x64/`  | Linux x64            |                                                   |
-| `linux-arm64/`| Linux arm64          |                                                   |
-| `osx-arm64/`  | macOS arm64          |                                                   |
+| Directory     | Host                 | Notes                                            |
+| ------------- | -------------------- | ------------------------------------------------ |
+| `win-x64/`    | Windows x64          |                                                  |
+| `linux-x64/`  | Linux x64            |                                                  |
+| `linux-arm64/`| Linux arm64          |                                                  |
+| `osx-arm64/`  | macOS arm64          |                                                  |
+
+Windows arm64 hosts reuse `win-x64/` (the x64 build runs under emulation);
+`SetPath.cs` handles that fallback.
 
 These binaries are **committed on purpose** so that CI and `dotnet pack` need no
 GB-sized downloads. Regenerate them with `src/download-llvm-objcopy.ps1`, which

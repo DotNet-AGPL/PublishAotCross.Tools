@@ -58,8 +58,4 @@ foreach ($rid in $assets.Keys) {
   Remove-Item $extract -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-# Windows arm64 hosts reuse the x64 build (runs via emulation).
-$winArm = Join-Path $OutDir "win-arm64"
-New-Item -ItemType Directory -Force $winArm | Out-Null
-Copy-Item (Join-Path $OutDir "win-x64\llvm-objcopy.exe") (Join-Path $winArm "llvm-objcopy.exe") -Force
 Write-Host "Done. Review and commit src/build/llvm-objcopy/."
