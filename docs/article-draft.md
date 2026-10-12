@@ -58,7 +58,7 @@ error : Cross-OS native compilation is not supported.
 ```mermaid
 flowchart LR
     subgraph HOSTS["构建机（任选一台）"]
-        W["Windows x64"]
+        W["Windows x64 / arm64"]
         L["Linux x64 / arm64"]
         M["macOS arm64"]
     end
@@ -138,6 +138,7 @@ dotnet publish -c Release -r osx-arm64
 | 宿主 \ 目标 | win-x64 | win-arm64 | linux-x64 | linux-arm64 | linux-musl-x64 | linux-musl-arm64 | osx-arm64 |
 | --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **Windows x64** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Windows arm64** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Linux x64** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Linux arm64** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **macOS arm64** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -197,8 +198,8 @@ jobs:
 **Q：macOS 产物在 Apple Silicon 上能直接跑吗？**
 可以，无需额外签名。
 
-**Q：需要装 Dart/Go/Zig 等外部工具吗？**
-不需要，工具链随 NuGet 包自动就位，`dotnet restore` 时解压即可。
+**Q：对构建机有什么要求？**
+安装 .NET SDK 即可，无其他编译依赖（无需 Visual Studio、C++ 工具链或 Docker）。工具链随 NuGet 包自动就位，`dotnet restore` 时解压即可。
 
 **Q：不想用内置工具链怎么办？**
 加 `-p:AotPreferCustom=false`，回退到系统原生工具链。
