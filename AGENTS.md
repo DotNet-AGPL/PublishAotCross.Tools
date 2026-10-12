@@ -147,3 +147,7 @@ dotnet publish test/AvaloniaApp/AvaloniaApp.csproj -c Release -r win-x64
 1. 创建 `toolsets/XWin.Store.linux-x64/` — 同 x64 结构，包含 linux 目标导入库
 2. 创建 `toolsets/LLD.Link.Toolsets.linux-x64/` — lld-link 为 linux 二进制
 3. 主 nuproj 添加 `PackageReference` 引用新平台包
+
+## 新会话快速上手
+
+架构原理、版本/发布模型、符号剥离（`llvm-objcopy`）与踩坑清单见 **`docs/PROJECT-HANDOVER.md`**。
