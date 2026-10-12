@@ -57,7 +57,10 @@ jobs:
             echo "::group::fetch $rid ($asset)"
             curl -fL --retry 5 --retry-delay 5 -o "/tmp/$rid.tar.zst" "$base/$asset"
             local x="/tmp/x-$rid"; rm -rf "$x"; mkdir -p "$x"
-            tar --zstd -xf "/tmp/$rid.tar.zst" -C "$x" --wildcards "$member"
+            # LLVM's .tar.zst assets need a large zstd window; GNU tar's --zstd
+            # invokes zstd without --long and fails ("window size larger than
+            # maximum"), so decompress explicitly.
+            zstd -dc --long=30 "/tmp/$rid.tar.zst" | tar -xf - -C "$x" --wildcards "$member"
             local src; src="$(find "$x" -type f -name "$(basename "$dest")" | head -1)"
             [ -n "$src" ] || { echo "not found: $member in $asset"; exit 1; }
             cp "$src" "$out/$rid/$dest"
