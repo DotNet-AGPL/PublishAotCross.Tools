@@ -13,11 +13,12 @@ PublishAotCross (upstream project)
   https://github.com/MichalStrehovsky/PublishAotCross
 
 ---------------------------------------------------------------------------
-LLVM / lld (the `lld-link` binaries bundled in the LLD.Link.Toolsets.* packages)
+LLVM (the `llvm-objcopy` binaries bundled in PublishAotCross.Tools, and the
+`lld-link` binaries bundled in the LLD.Link.Toolsets.* packages)
   Licensed under the Apache License, Version 2.0 with LLVM Exceptions.
   https://llvm.org/
   https://llvm.org/foundation/relicensing/
-  Full license text ships with each LLD.Link.Toolsets.* package as `LICENSE`.
+  Full LLVM license text ships with each LLD.Link.Toolsets.* package as `LICENSE`.
 
 ---------------------------------------------------------------------------
 macOS SDK (the filtered SDK subset bundled in the MacOSX.SDK package)

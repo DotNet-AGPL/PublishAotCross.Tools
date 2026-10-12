@@ -97,17 +97,16 @@ flowchart LR
 
   <PropertyGroup>
     <DebugType>none</DebugType>
-    <StripSymbols>false</StripSymbols>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="PublishAotCross.Tools" Version="0.6.0.11" />
+    <PackageReference Include="PublishAotCross.Tools" Version="1.0.1.13" />
   </ItemGroup>
 </Project>
 ```
 
 支持 `.NET 8 / 9 / 10`，`<TargetFramework>` 按你的项目填即可。
-`<DebugType>none</DebugType>` + `<StripSymbols>false</StripSymbols>` 是推荐搭配，发布产物本身就很精简。
+`<DebugType>none</DebugType>` 表示不保留调试符号；符号剥离由包内自带的 `llvm-objcopy` 自动完成，无需手工设置，产物已很精简。
 
 ### 第 2 步：想构建哪个平台，就敲哪条命令
 
@@ -146,7 +145,7 @@ dotnet publish -c Release -r osx-arm64
 ## 七、常用参数
 
 - **兼容旧 Linux 发行版**：`/p:GlibcVersion=2.35`（指定 glibc 版本）
-- **剥离符号让产物更小**：`/p:StripSymbols=true`（包内自带符号剥离工具）
+- **剥离符号**：非 Windows 目标**默认开启**（包内自带多格式 `llvm-objcopy`）；如需保留符号可加 `/p:StripSymbols=false`
 - **改回系统原生工具链**：`-p:AotPreferCustom=false`（默认用包内置工具链，保证环境一致）
 
 ## 八、在 CI 里就一条命令

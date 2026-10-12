@@ -65,7 +65,7 @@ System/Library/Frameworks/{CoreFoundation,Foundation,Security,Network,GSS,Crypto
 下载（SHA256 校验）→ 解压（7-Zip 解 `.tar.xz`，bsdtar 解 `.tar`）→ **按上述规则裁剪**到 `.macosx-sdk-tmp/`。
 
 ### 3. `toolsets/ToolsetsVersion.props`
-新增 `MacOSXSDKVersion=26.1`（连同 `Revision=9`、`PublishAotCrossVersion`）。
+新增 `MacOSXSDKVersion=26.1`（连同 `Revision`、`PublishAotCrossVersionPrefix`）。
 
 ### 4. 主包 `src/PublishAotCross.Tools.nuproj`
 ```xml
