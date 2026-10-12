@@ -1,10 +1,49 @@
 #! /usr/bin/env sh
+#
+# objcopy shim for the Native AOT symbol-strip step on non-Windows targets.
+#
+# ILCompiler probes PATH for a symbol-stripping tool; when clang drives the link
+# it prefers `llvm-objcopy` and falls back to `objcopy`
+# (see Microsoft.NETCore.Native.Unix.targets). This package's build directory is
+# prepended to PATH (SetPath.cs) and contains this very file named `objcopy`, so
+# a naive `exec objcopy "$@"` resolves back to this script and spins forever.
+# Only ever exec a real tool: skip any PATH entry that is this script itself.
 
-if command -v llvm-objcopy >/dev/null 2>&1; then
-  exec llvm-objcopy "$@"
-elif command -v objcopy >/dev/null 2>&1; then
-  exec objcopy "$@"
+_self=$0
+if command -v readlink >/dev/null 2>&1; then
+  _r=$(readlink -f "$0" 2>/dev/null) && [ -n "$_r" ] && _self=$_r
+fi
+
+_is_self() {
+  _p=$1
+  if command -v readlink >/dev/null 2>&1; then
+    _r=$(readlink -f "$_p" 2>/dev/null) && [ -n "$_r" ] && _p=$_r
+  fi
+  [ "$_p" = "$_self" ]
+}
+
+_find_real() {
+  _name=$1
+  _oldifs=$IFS
+  IFS=:
+  for _dir in $PATH; do
+    [ -n "$_dir" ] || _dir=.
+    _cand="$_dir/$_name"
+    if [ -x "$_cand" ] && [ ! -d "$_cand" ] && ! _is_self "$_cand"; then
+      IFS=$_oldifs
+      printf '%s\n' "$_cand"
+      return 0
+    fi
+  done
+  IFS=$_oldifs
+  return 1
+}
+
+if _tool=$(_find_real llvm-objcopy); then
+  exec "$_tool" "$@"
+elif _tool=$(_find_real objcopy); then
+  exec "$_tool" "$@"
 else
-  echo "Warning: neither llvm-objcopy nor objcopy found on PATH, skipping strip"
+  echo "Warning: neither llvm-objcopy nor objcopy found on PATH, skipping strip" >&2
   exit 0
 fi
