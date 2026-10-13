@@ -3,6 +3,7 @@
   <PropertyGroup>
     <DisableUnsupportedError>true</DisableUnsupportedError>
     <AotPreferCustom>true</AotPreferCustom>
+    <PublishAotCrossDebug Condition="'$(PublishAotCrossDebug)' == ''">true</PublishAotCrossDebug>
     <HostRuntimeIdentifier Condition="'$(HostRuntimeIdentifier)' == ''">$(NETCoreSdkPortableRuntimeIdentifier)</HostRuntimeIdentifier>
     <UseExternalZig Condition="'$(UseExternalZig)' == ''">false</UseExternalZig>
     <GlibcVersion Condition="'$(GlibcVersion)' == ''" />
@@ -30,6 +31,7 @@
       <AotPreferCustom ParameterType="System.Boolean" Required="true" />
       <UseExternalZig ParameterType="System.Boolean" Required="true" />
       <MacOSXSDKDir ParameterType="System.String" Required="false" />
+      <PublishAotCrossDebug ParameterType="System.Boolean" Required="false" />
       <!-- Out Variables -->
       <CustomAotToolChain ParameterType="System.String" Output="true"/>
     </ParameterGroup>
@@ -69,7 +71,8 @@
       ZigPath="$(ZigPath)"
       AotPreferCustom="$(AotPreferCustom)"
       UseExternalZig="$(UseExternalZig)"
-      MacOSXSDKDir="$(MacOSXSDKDir)">
+      MacOSXSDKDir="$(MacOSXSDKDir)"
+      PublishAotCrossDebug="$(PublishAotCrossDebug)">
       <Output TaskParameter="CustomAotToolChain" PropertyName="CustomAotToolChain"/>
     </PrependPathIfCrossCompile>
 

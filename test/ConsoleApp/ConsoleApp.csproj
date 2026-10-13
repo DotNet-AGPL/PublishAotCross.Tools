@@ -11,10 +11,12 @@
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
+  <!--
   <PropertyGroup>
     <DebugType>none</DebugType>
     <StripSymbols>false</StripSymbols>
   </PropertyGroup>
+  -->
 
   <ItemGroup>
     <PackageReference Include="PublishAotCross.Tools" Version="$(PublishAotCrossVersion)" />

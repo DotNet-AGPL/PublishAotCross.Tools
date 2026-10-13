@@ -102,7 +102,7 @@ flowchart LR
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="PublishAotCross.Tools" Version="1.0.1.13" />
+    <PackageReference Include="PublishAotCross.Tools" Version="1.0.2.13" />
   </ItemGroup>
 </Project>
 ```

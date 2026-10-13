@@ -1,5 +1,3 @@
-Console.Error.WriteLine("Running custom toolchain environment setup for cross building...");
-
 if (!UseExternalZig) {
   Environment.SetEnvironmentVariable("PATH", ZigPath + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH"));
 }
@@ -14,7 +12,7 @@ if (!string.IsNullOrEmpty(MacOSXSDKDir)) {
 var buildenv = "";
 var isHostWindows = false;
 var isTargetingWindows = RuntimeIdentifier.StartsWith("win");
-var isDebug = Environment.GetEnvironmentVariable("DOTNET_PUBLISHAOTCROSS") == bool.TrueString;
+var isDebug = PublishAotCrossDebug;
 
 if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) {
   var osDescription = RuntimeInformation.OSDescription;
@@ -47,6 +45,10 @@ if (isTargetingWindows) {
     Environment.SetEnvironmentVariable("CustomAotToolChain", "xwin");
     CustomAotToolChain = "xwin";
 
+    if (isDebug) {
+      Console.Error.WriteLine($"PublishAotCross.Tools: using the xwin toolchain for {RuntimeIdentifier} (host {buildenv}).");
+    }
+
     return Success;
   }
 
@@ -55,6 +57,10 @@ if (isTargetingWindows) {
     // Use xwin toolchain for Windows native compilation instead of VS C++ tools
     Environment.SetEnvironmentVariable("CustomAotToolChain", "xwin");
     CustomAotToolChain = "xwin";
+
+    if (isDebug) {
+      Console.Error.WriteLine($"PublishAotCross.Tools: using the xwin toolchain for {RuntimeIdentifier} (host {buildenv}).");
+    }
 
     return Success;
   }
@@ -90,7 +96,7 @@ if (isTargetingWindows) {
     }
 
     if (isDebug) {
-      Console.Error.WriteLine($"Adding {MSBuildThisFileDirectory} to PATH for cross building {RuntimeIdentifier} on {buildenv}");
+      Console.Error.WriteLine($"PublishAotCross.Tools: using the Zig toolchain for {RuntimeIdentifier} (host {buildenv}); added {MSBuildThisFileDirectory} to PATH.");
     }
 
     Environment.SetEnvironmentVariable("CustomAotToolChain", "zig");
@@ -101,5 +107,5 @@ if (isTargetingWindows) {
 }
 
 if (isDebug) {
-  Console.Error.WriteLine($"Native building for {buildenv}, skip setting custom toolchain environment...");
+  Console.Error.WriteLine($"PublishAotCross.Tools: native build on {buildenv} for {RuntimeIdentifier}; leaving the system toolchain in place.");
 }

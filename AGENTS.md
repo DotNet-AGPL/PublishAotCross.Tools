@@ -114,8 +114,8 @@ test/
 #    主包版本 = $(PublishAotCrossVersionPrefix).$(Revision)，Revision 与 toolsets 共享
 # 2. 打包
 dotnet pack src\PublishAotCross.Tools.nuproj -o artifacts --force
-# 3. 推送（示例版本 1.0.1.13）
-dotnet nuget push artifacts\PublishAotCross.Tools.1.0.1.13.nupkg --api-key <key> --source https://api.nuget.org/v3/index.json
+# 3. 推送（示例版本 1.0.2.13）
+dotnet nuget push artifacts\PublishAotCross.Tools.1.0.2.13.nupkg --api-key <key> --source https://api.nuget.org/v3/index.json
 ```
 
 ## 测试

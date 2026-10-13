@@ -54,6 +54,7 @@ test/
 - 按宿主把 Zig 加入 PATH（`UseExternalZig=false` 时）。
 - 设置 `MACOSX_SDK`（来自 `MacOSXSDKDir`，即 `MacOSX.SDK` 包提供的路径）。
 - **zig 链路**下把包内 `build/` 与 `build/llvm-objcopy/<宿主 RID>` **前置**到 PATH，并对非 Windows 宿主 `chmod -R +x`。
+- 打印"选了哪条链"的诊断信息（受 `PublishAotCrossDebug` 控制，**默认 `true`**；`/p:PublishAotCrossDebug=false` 可关闭）。
 
 **`clang` shim（POSIX，`zig cc` 包装）**
 - 去掉 zig 不支持的参数（`-lz`、`-pie`、`--discard-all` 等）。
@@ -83,7 +84,7 @@ test/
 
 | 包 | 版本公式 |
 | --- | --- |
-| `PublishAotCross.Tools` | `$(PublishAotCrossVersionPrefix).$(Revision)` → 如 `1.0.1.13` |
+| `PublishAotCross.Tools` | `$(PublishAotCrossVersionPrefix).$(Revision)` → 如 `1.0.2.13` |
 | `XWin.Store.*` | `$(XWinVersion).$(Revision)` |
 | `LLD.Link.Toolsets.*` | `$(LLDVersion).$(Revision)` |
 | `MacOSX.SDK` | `$(MacOSXSDKVersion).$(Revision)` |
@@ -92,7 +93,7 @@ test/
 - **`Revision` 全包共享**：主包依赖的就是 `…$(Revision)`。改动 `Revision` ⇒ **9 个包都要重发**（toolsets 通常只是"换版本号"）。
 - **主包 = 前段 + Revision**：前段（`PublishAotCrossVersionPrefix`）可单独调整。
 - **发布顺序：先 8 个 toolset/store/SDK，再主包**。否则用户还原与 CI 都会 `NU1102`（找不到 `.Revision` 版本）。
-- 线上历史：`0.6.0.5 … 0.6.0.12` →（本次）`1.0.1.13`。
+- 线上历史：`0.6.0.5 … 0.6.0.12` → `1.0.1.13` → `1.0.2.13`（后者仅主包变化：只升"前段"，toolset 仍 `.13`）。
 
 ---
 
@@ -206,8 +207,9 @@ dotnet publish test/TestPublish/TestNupkg.csproj -c Release -f net10.0 -r osx-ar
 2. CI 的 Linux job 卡死 → 定位为 **包内 `objcopy` shim 在 Linux 上 `exec` 自身**。
 3. 修复 shim（消除自递归）→ 暴露"binutils 无法剥离 aarch64"→ 改为**尽力而为、不中断构建**。
 4. 方案 A：**内置各宿主多格式 `llvm-objcopy`**（新增 `fetch-objcopy.yml` 在 CI 生成），`SetPath.cs` 前置；`objcopy` shim 保留为兜底。
-5. 版本模型定型：`Revision` 全包共享；主包 = `前缀(1.0.1) + Revision`；`NOTICE` 补 `llvm-objcopy` 归属。
+5. 版本模型定型：`Revision` 全包共享；主包 = `前缀 + Revision`（如 `1.0.2.13`）；`NOTICE` 补 `llvm-objcopy` 归属。
 6. 发布 **`.13`**：主包 `1.0.1.13` + 8 个 toolset/store/SDK `.13`；本地端到端验证通过；CI 全绿。
+7. 诊断便利化：`SetPath.cs` 的调试开关由环境变量改为 **MSBuild 属性 `PublishAotCrossDebug`**（默认 `true`），并打印"选了哪条链"；剔除原误导性横幅。仅主包变化 → 发布 **`1.0.2.13`**（只升前段，toolset 不动）。
 
 ---
 

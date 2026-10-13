@@ -39,6 +39,8 @@ If you don't want to use Zig from the Vezel.Zig.Toolsets NuGet package, you can 
 
     You can specify a custom glibc version via `/p:GlibcVersion=<version>` (e.g. `2.35`). This appends the version suffix to the target triple (e.g. `x86_64-linux-gnu.2.35`).
 
+The toolchain selection prints a short diagnostic line during build (which toolchain was picked). It is on by default; pass `/p:PublishAotCrossDebug=false` to silence it.
+
 This package also supports Windows-to-Windows Native AOT compilation without Visual Studio C++ tools, using xwin SDK store + lld-link + Zig toolchain.
 
 Cross-compiling to `osx-arm64` from Windows/Linux is supported: the `MacOSX.SDK` package (referenced automatically) supplies a filtered macOS SDK subset, and Zig performs the linking. No macOS machine is required. Symbol stripping is disabled automatically in this case (the macOS-only `dsymutil`/`strip` tools are unavailable on the host).

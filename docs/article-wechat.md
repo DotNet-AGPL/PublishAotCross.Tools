@@ -80,7 +80,7 @@ error : Cross-OS native compilation is not supported.
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="PublishAotCross.Tools" Version="1.0.1.13" />
+    <PackageReference Include="PublishAotCross.Tools" Version="1.0.2.13" />
   </ItemGroup>
 </Project>
 ```
