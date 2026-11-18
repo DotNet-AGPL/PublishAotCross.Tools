@@ -75,8 +75,15 @@ function Copy-Tbd([string]$src, [string]$dst) {
 Write-Host "Filtering SDK subset ..."
 robocopy "$sdkSrc\usr\include" "$StoreTmp\usr\include" /E /NFL /NDL /NJH /NJS /NP /R:1 /W:1 | Out-Null
 
-# Framework .tbd stubs used by NativeAOT (extend as linker errors appear).
-$frameworks = @("CoreFoundation", "Foundation", "Security", "Network", "GSS", "CryptoKit")
+# Framework .tbd stubs used by NativeAOT. The first group is what NativeAOT's
+# NativeFramework links explicitly; the second group is what the shipped native
+# libraries autolink via LC_LINKER_OPTION (e.g. .NET's Apple Crypto), which the
+# Zig linker does not expand. Include them so the replayed autolink can resolve.
+# Note: CoreServices reexports CFNetwork, so CFNetwork must ship alongside it.
+$frameworks = @(
+  "CoreFoundation", "Foundation", "Security", "Network", "GSS", "CryptoKit",
+  "CFNetwork", "Combine", "CoreServices", "DiskArbitration", "IOKit", "LocalAuthentication"
+)
 foreach ($fw in $frameworks) {
   $src = "$sdkSrc\System\Library\Frameworks\$fw.framework"
   $dst = "$StoreTmp\System\Library\Frameworks\$fw.framework"

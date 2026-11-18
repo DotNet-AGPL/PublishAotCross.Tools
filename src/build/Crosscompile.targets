@@ -47,6 +47,30 @@
     </Task>
   </UsingTask>
 
+  <UsingTask TaskName="GetSwiftAutolinkArgs"
+             TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+
+    <ParameterGroup>
+      <NativeLibraries ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <MacOSXSDKDir ParameterType="System.String" Required="false" />
+      <PublishAotCrossDebug ParameterType="System.Boolean" Required="false" />
+      <!-- Out Variables -->
+      <LinkerArgs ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+    </ParameterGroup>
+
+    <Task>
+      <Using Namespace="System" />
+      <Using Namespace="System.Collections.Generic" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text" />
+      <Using Namespace="Microsoft.Build.Framework" />
+      <Using Namespace="Microsoft.Build.Utilities" />
+      <Code Type="Fragment" Language="cs" Source="$(MSBuildThisFileDirectory)/Scripts/GetSwiftAutolinkArgs.cs">
+      </Code>
+    </Task>
+  </UsingTask>
+
   <Target
     Name="SetPathToClang"
     BeforeTargets="SetupOSSpecificProps">
@@ -110,6 +134,26 @@
     <ItemGroup Condition=" '$(CustomAotToolChain)' == 'zig' ">
       <LinkerArg Include="--target=$(TargetTriple)" />
       <LinkerArg Condition="'$(_MacOSXSDKDir)' != '' and $(RuntimeIdentifier.StartsWith('osx'))" Include="-isysroot $(_MacOSXSDKDir)" />
+    </ItemGroup>
+
+    <!-- macOS 目标：Apple Crypto 静态库 (libSystem.Security.Cryptography.Native.Apple.a)
+         带有 Swift autolink 条目 (LC_LINKER_OPTION)，ld64 会自动展开成 -lswift*，
+         但 Zig 链接器不解析这些条目，导致 __swift_FORCE_LOAD_$_swift* 变成未定义
+         符号（任何走 TLS/X509 的库都会踩到，如 mysql/postgres/sqlserver）。
+         这里不硬编码模块清单（会随 SDK/.NET 版本漂移漏项），而是扫描实际参与链接
+         的原生静态库、重放其中的 Swift autolink；仅保留 macOS SDK 中确实存在的
+         库/framework，并配合 -dead_strip_dylibs 剔除最终产物里未用到的依赖。 -->
+    <GetSwiftAutolinkArgs
+      Condition=" '$(CustomAotToolChain)' == 'zig' and $(RuntimeIdentifier.StartsWith('osx')) "
+      NativeLibraries="@(NativeLibrary)"
+      MacOSXSDKDir="$(_MacOSXSDKDir)"
+      PublishAotCrossDebug="$(PublishAotCrossDebug)">
+      <Output TaskParameter="LinkerArgs" ItemName="_SwiftAutolinkArgs" />
+    </GetSwiftAutolinkArgs>
+
+    <ItemGroup Condition=" '$(CustomAotToolChain)' == 'zig' and $(RuntimeIdentifier.StartsWith('osx')) ">
+      <LinkerArg Include="-Wl,-dead_strip_dylibs" />
+      <LinkerArg Include="@(_SwiftAutolinkArgs)" />
     </ItemGroup>
 
     <PropertyGroup Condition=" '$(CustomAotToolChain)' == 'xwin' ">

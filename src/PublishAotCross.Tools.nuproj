@@ -32,6 +32,7 @@
 
   <ItemGroup>
     <None Include="build/**/*" Pack="true" PackagePath="build" />
+    <None Include="../skills/publishaotcross-tools/**" Pack="true" PackagePath="skills/publishaotcross-tools/" />
     <None Include="../toolsets/ToolsetsVersion.props" Link="ToolsetsVersion.props">
       <Pack>true</Pack>
       <PackagePath>build</PackagePath>

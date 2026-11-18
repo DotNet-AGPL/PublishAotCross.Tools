@@ -20,6 +20,7 @@
     <None Include="README.md" Pack="true" PackagePath="/" />
     <None Include="LICENSE" Pack="true" PackagePath="/" />
     <None Include="../../NOTICE" Pack="true" PackagePath="/" />
+    <None Include="../../skills/lld-link/**" Pack="true" PackagePath="skills/lld-link/" />
   </ItemGroup>
 
   <UsingTask TaskName="ExtractLldZip" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
