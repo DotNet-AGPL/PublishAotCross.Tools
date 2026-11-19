@@ -76,7 +76,7 @@ jobs:
             os: ubuntu-24.04
             rids: linux-x64 linux-arm64
           - name: macOS
-            os: macos-14
+            os: macos-latest
             rids: osx-arm64
             runrid: osx-arm64
     steps:
@@ -195,7 +195,7 @@ jobs:
   run_osx_arm64:
     name: Run cross-built osx-arm64 (macOS)
     needs: cross_osx_arm64
-    runs-on: macos-14
+    runs-on: macos-latest
     # See the note on the build matrix: macOS runners can be unavailable, which
     # must not fail the whole run.
     continue-on-error: true
