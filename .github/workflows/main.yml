@@ -60,11 +60,6 @@ jobs:
     name: Cross-compile (${{ matrix.host.name }})
     needs: sdk
     runs-on: ${{ matrix.host.os }}
-    # The macOS legs need a GitHub-hosted macOS runner. That pool is capacity
-    # constrained and a job can be cancelled after ~15 min in the queue, which is
-    # infrastructure flakiness rather than a code problem. Do not let it fail the
-    # whole run; real macOS breakage is still visible in the job result.
-    continue-on-error: ${{ matrix.host.name == 'macOS' }}
     strategy:
       fail-fast: false
       matrix:
@@ -196,9 +191,6 @@ jobs:
     name: Run cross-built osx-arm64 (macOS)
     needs: cross_osx_arm64
     runs-on: macos-latest
-    # See the note on the build matrix: macOS runners can be unavailable, which
-    # must not fail the whole run.
-    continue-on-error: true
     steps:
       - name: Download artifact
         uses: actions/download-artifact@v4
