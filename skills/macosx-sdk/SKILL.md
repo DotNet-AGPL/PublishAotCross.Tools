@@ -5,9 +5,9 @@ description: Use when cross-compiling or linking Mach-O for macOS without a Mac 
 
 # MacOSX.SDK
 
-A filtered macOS SDK subset (sourced from Apple Xcode via
-`joseluisq/macosx-sdks`) packaged so you can **link osx-arm64 binaries on
-Windows or Linux**.
+A filtered macOS SDK subset (extracted from Apple's Command Line Tools package,
+which Apple serves from its public software-update CDN) packaged so you can
+**link osx-arm64 binaries on Windows or Linux**.
 
 ## Contents
 

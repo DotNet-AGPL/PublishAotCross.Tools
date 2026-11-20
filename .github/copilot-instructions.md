@@ -39,13 +39,14 @@ src/
 
 toolsets/                            Platform helper packages (referenced by main package)
 ├── ToolsetsVersion.props            ZigVersion=0.17.0.1, XWinVersion=0.10.0,
-│                                    LLDVersion=23.1.3, MacOSXSDKVersion=26.1, Revision=13
+│                                    LLDVersion=23.1.5, MacOSXSDKVersion=27.2, Revision=15
 ├── XWin.Store.x64 / arm64           Filtered Windows SDK/CRT store (content gitignored)
 ├── MacOSX.SDK                       Filtered macOS SDK subset for osx-arm64 (content gitignored)
+├── MacOSX.SDK.Fetch                 Parses the Apple CLT .pkg (xar/pbzx/cpio) into that subset
 ├── LLD.Link.Toolsets.*              lld-link binaries (win-x64/arm64, linux-x64/arm64, osx-arm64)
 ├── download-xwin-store.ps1          Regenerate the Windows SDK store (admin + network)
 ├── download-lld-link.ps1            Re-extract lld-link from LLVM release archives
-└── download-macosx-sdk.ps1          Download + filter the macOS SDK (osx-arm64)
+└── download-macosx-sdk.ps1          Download the Apple CLT .pkg + run MacOSX.SDK.Fetch
 
 test/
 ├── TestPublish/TestNupkg.csproj     Cross-compilation validation (net8/9/10, multi-RID)

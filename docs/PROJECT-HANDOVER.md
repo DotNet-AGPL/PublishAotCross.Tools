@@ -82,7 +82,7 @@ test/
 <ZigVersion>0.17.1.1</ZigVersion>
 <XWinVersion>0.10.0</XWinVersion>
 <LLDVersion>23.1.5</LLDVersion>
-<MacOSXSDKVersion>26.1</MacOSXSDKVersion>
+<MacOSXSDKVersion>27.2</MacOSXSDKVersion>
 <Revision>15</Revision>                                  <!-- 全包共享 -->
 <PublishAotCrossVersionPrefix>1.0.3</PublishAotCrossVersionPrefix>
 <PublishAotCrossVersion>$(PublishAotCrossVersionPrefix).$(Revision)</PublishAotCrossVersion>
@@ -112,7 +112,11 @@ test/
 
 ## 4. macOS 交叉（非 macOS 宿主 → osx-arm64）
 
-- `MacOSX.SDK` 包（过滤后的 SDK 子集，约 14.7MB）自动 `PackageReference` ；其 `buildTransitive/MacOSX.SDK.props` 给出 `MacOSXSDKDir`。
+- `MacOSX.SDK` 包（过滤后的 SDK 子集，约 15.7MB）自动 `PackageReference` ；其 `buildTransitive/MacOSX.SDK.props` 给出 `MacOSXSDKDir`。
+- 内容来自 **Apple 官方 Command Line Tools 包**（`swcdn.apple.com` 的 `CLTools_macOSNMOS_SDK.pkg`，无需 Apple ID / Mac / Xcode）；
+  `toolsets/download-macosx-sdk.ps1` 固定 URL + SHA256，`toolsets/MacOSX.SDK.Fetch` 负责解析
+  `xar → pbzx（分块 XZ）→ odc cpio（magic 070707）` 并按白名单过滤。framework 顶层 `.tbd` 在 SDK 里是符号链接，
+  提取时会物化成实文件（`<Fw>.framework/<Fw>.tbd`），因为链接器只探顶层路径且 Windows 建符号链接不可靠。
 - 无需 Mac：Zig 链接 + 注入的 SDK 搜索路径即可产出 Mach-O。
 - **`StripSymbols` 语义**：`RuntimeIdentifier.StartsWith('osx') && !HostRuntimeIdentifier.StartsWith('osx')`
   ⇒ 默认 **`true`**（与 ILC 对非 Windows 目标的默认一致，也和 macOS 原生构建一致）：
@@ -204,7 +208,7 @@ test/
 ## 6. CI
 
 `.github/workflows/main.yml`（触发：`pull_request` + `workflow_dispatch`）
-- `sdk`：下载并过滤 macOS SDK → 打 `MacOSX.SDK` 包 → 上传 artifact。
+- `sdk`：从 Apple CDN 取 CLT 27.2 SDK 包（68MB，走 actions/cache）→ `MacOSX.SDK.Fetch` 过滤 → 打 `MacOSX.SDK` 包 → 上传 artifact。
 - `symbols`：抽出 4 个宿主的 `dsymutil`（`tools/*/tools` 走 actions/cache，命中就跳过 ~5GB 的 LLVM 归档下载）→
   打 `MacOSX.Symbols.Toolsets` 父包 + 4 子包 → 上传 artifact。
 - `metapkgs`：重建 `XWin.Store`（xwin splat，1.4 GB store 走 actions/cache）+ 从随仓库提交的 `tools/lld-link.zip.partNN`（打包时合并）
@@ -218,7 +222,7 @@ test/
 - `validate`：跑 linux-x64。
 - CI **不推送** NuGet；`XWin.Store.*` / `LLD.*` 内容 gitignored，CI 只能从 feed **还原**它们。
   ⇒ **改 `Revision` 后必须先发布这些包，CI 才能跑通。**
-  `MacOSX.SDK` / `MacOSX.Symbols.Toolsets*` 例外：它们由 CI 自己从源码/归档构建。
+  `MacOSX.SDK` / `MacOSX.Symbols.Toolsets*` 例外：它们由 CI 自己从 Apple CDN / LLVM 归档构建。
 
 `.github/workflows/fetch-objcopy.yml`：手动工具，获取/更新内置 `llvm-objcopy`。
 
@@ -240,7 +244,8 @@ curl -X POST -H "Authorization: token $KEY" .../actions/workflows/main.yml/dispa
 | --- | --- | --- |
 | `toolsets/download-xwin-store.ps1` | 重新生成 xwin SDK store | 需管理员 + 网络 |
 | `toolsets/download-lld-link.ps1` | 从 LLVM 安装包提取各平台 `lld-link` | 需 7-Zip |
-| `toolsets/download-macosx-sdk.ps1` | 下载 + 过滤 macOS SDK | 需接受 Apple 许可 |
+| `toolsets/download-macosx-sdk.ps1` | 下载 Apple CLT `.pkg` + 调 `MacOSX.SDK.Fetch` 过滤 | 需接受 Apple 许可；`-PackagePath` 可离线 |
+| `toolsets/MacOSX.SDK.Fetch` | 解析 xar/pbzx/odc-cpio 并过滤 SDK 子集 | 零 NuGet 依赖，`--trace` 可诊断 |
 | `src/download-llvm-objcopy.ps1` | 生成内置 `llvm-objcopy` | 须支持 zstd 的 tar |
 | `.github/workflows/fetch-objcopy.yml` | 同上（CI 版，推荐） | 手动触发 |
 

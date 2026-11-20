@@ -1,105 +1,92 @@
+<#
+.SYNOPSIS
+  Downloads the macOS SDK from Apple's Command Line Tools package and extracts the
+  subset that Native AOT needs to cross-link osx-arm64 binaries.
+
+.DESCRIPTION
+  The heavy lifting (xar -> pbzx -> cpio) lives in toolsets/MacOSX.SDK.Fetch, which is
+  also what a future "download at build time" flow would reuse. This script only pins
+  the package URL/hash, keeps a local copy of the .pkg and runs the tool.
+
+  The .pkg comes from Apple's public software-update CDN, so no Apple ID, no Mac and no
+  Xcode are involved. Using the SDK is still subject to Apple's Xcode license terms.
+
+.EXAMPLE
+  pwsh toolsets/download-macosx-sdk.ps1 -AcceptLicense
+
+.EXAMPLE
+  # Offline: reuse a package that was downloaded earlier.
+  pwsh toolsets/download-macosx-sdk.ps1 -AcceptLicense -PackagePath D:\pkgs\CLTools_macOSNMOS_SDK.pkg
+#>
 param(
   [switch]$AcceptLicense,
-  [string]$Version = "26.1",
-  [string]$StoreTmp = "$PSScriptRoot\MacOSX.SDK\.macosx-sdk-tmp"
+  [string]$Version = "",
+  [string]$PackagePath = "",
+  [string]$StoreTmp = "$PSScriptRoot\MacOSX.SDK\.macosx-sdk-tmp",
+  [string]$KeepPackage = "$PSScriptRoot\.pkg-cache",
+  [string]$Decoder = ""
 )
 
 $ErrorActionPreference = "Stop"
 
 if (-not $AcceptLicense) {
   Write-Host "=== Apple Xcode License Notice ==="
-  Write-Host "This script downloads the macOS SDK from joseluisq/macosx-sdks."
   Write-Host "The macOS SDK is subject to Apple's Xcode license terms:"
   Write-Host "  https://www.apple.com/legal/sla/docs/xcode.pdf"
-  Write-Host "By downloading and using this SDK, you agree to those terms."
   Write-Host ""
   $confirm = Read-Host "Do you accept the license terms? (y/N)"
   if ($confirm -ne "y" -and $confirm -ne "Y") { Write-Error "License not accepted"; exit 1 }
 }
 
-# SHA256 values from https://raw.githubusercontent.com/joseluisq/macosx-sdks/master/macosx_sdks.json
-$sha256 = switch ($Version) {
-  "26.1" { "beee7212d265a6d2867d0236cc069314b38d5fb3486a6515734e76fa210c784c" }
-  "26.0" { "07ccaa2891454713c3a230dd87283f76124193309d9a7617ebee45354c9302d2" }
-  "15.5" { "c15cf0f3f17d714d1aa5a642da8e118db53d79429eb015771ba816aa7c6c1cbd" }
-  default { throw "Unknown version $Version. Add its SHA256 from https://raw.githubusercontent.com/joseluisq/macosx-sdks/master/macosx_sdks.json" }
+# Version comes from ToolsetsVersion.props so the package and the extracted content
+# can never disagree.
+$propsPath = Join-Path $PSScriptRoot "ToolsetsVersion.props"
+[xml]$props = Get-Content $propsPath
+if (-not $Version) {
+  $Version = $props.SelectSingleNode("/Project/PropertyGroup/MacOSXSDKVersion").InnerText
 }
+Write-Host "macOS SDK version: $Version"
 
-$url = "https://github.com/joseluisq/macosx-sdks/releases/download/$Version/MacOSX$Version.sdk.tar.xz"
-$archive = Join-Path $env:TEMP "MacOSX$Version.sdk.tar.xz"
-
-if (-not (Test-Path $archive)) {
-  Write-Host "Downloading $url ..."
-  curl.exe -fsSL --ssl-no-revoke $url -o $archive
-  if (-not $?) { throw "Download failed" }
-}
-
-$actual = (Get-FileHash -Path $archive -Algorithm SHA256).Hash.ToLower()
-if ($actual -ne $sha256) {
-  throw "SHA256 mismatch:`n  Expected: $sha256`n  Actual:   $actual"
-}
-Write-Host "SHA256 verified."
-
-# --- Extract the full SDK to a scratch dir ---
-$work = Join-Path $env:TEMP "MacOSX$Version.sdk-extract"
-Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Force -Path $work | Out-Null
-
-$sevenZip = (Get-Command 7z, 7za, 7zr -ErrorAction SilentlyContinue | Select-Object -First 1).Source
-if ($sevenZip) {
-  Write-Host "Extracting with 7-Zip ..."
-  & $sevenZip x $archive "-o$work" -y | Out-Null
-  $tar = Get-ChildItem $work -Filter *.tar | Select-Object -First 1
-  if ($tar) {
-    # 7-Zip (x86) cannot open the very large .tar; use bsdtar for the second step.
-    tar -xf $tar.FullName -C $work
-    Remove-Item $tar.FullName -Force -ErrorAction SilentlyContinue
+# Pinned Command Line Tools 27.2 SDK package (NMOS = the current SDK, LMOS carries the
+# previous major). Keep this table in sync with MacOSX.SDK.Fetch's default URL.
+$packages = @{
+  "27.2" = @{
+    Url    = "https://swcdn.apple.com/content/downloads/53/49/142-50405-A_WOBLDDXP4W/wk3d2yw94ir1jieuddcu9b9tffxrb09bq8/CLTools_macOSNMOS_SDK.pkg"
+    Sha256 = "1eb5196e069ad6e0abde1d750d967b7ea58f5b97f179dbf07aee2d00ca6c813e"
+    File   = "CLTools_macOSNMOS_SDK-27.2.pkg"
   }
-} else {
-  Write-Host "Extracting with tar ..."
-  tar -xf $archive -C $work
 }
 
-$sdkSrc = Join-Path $work "MacOSX$Version.sdk"
-if (-not (Test-Path $sdkSrc)) { throw "SDK not found after extraction: $sdkSrc" }
-
-# --- Filter the subset that NativeAOT needs for osx-arm64 ---
-Remove-Item -Recurse -Force $StoreTmp -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Force -Path $StoreTmp | Out-Null
-
-function Copy-Tbd([string]$src, [string]$dst) {
-  if (-not (Test-Path $src)) { return }
-  robocopy $src $dst *.tbd /E /NFL /NDL /NJH /NJS /NP /R:1 /W:1 | Out-Null
+$entry = $packages[$Version]
+if (-not $entry) {
+  throw "Unknown macOS SDK version $Version. Add its package URL/SHA256 (see toolsets/MacOSX.SDK.Fetch/Program.cs)."
 }
 
-Write-Host "Filtering SDK subset ..."
-robocopy "$sdkSrc\usr\include" "$StoreTmp\usr\include" /E /NFL /NDL /NJH /NJS /NP /R:1 /W:1 | Out-Null
-
-# Framework .tbd stubs used by NativeAOT. The first group is what NativeAOT's
-# NativeFramework links explicitly; the second group is what the shipped native
-# libraries autolink via LC_LINKER_OPTION (e.g. .NET's Apple Crypto), which the
-# Zig linker does not expand. Include them so the replayed autolink can resolve.
-# Note: CoreServices reexports CFNetwork, so CFNetwork must ship alongside it.
-$frameworks = @(
-  "CoreFoundation", "Foundation", "Security", "Network", "GSS", "CryptoKit",
-  "CFNetwork", "Combine", "CoreServices", "DiskArbitration", "IOKit", "LocalAuthentication"
+$toolProject = Join-Path $PSScriptRoot "MacOSX.SDK.Fetch\MacOSX.SDK.Fetch.csproj"
+$arguments = @(
+  "run", "--project", $toolProject, "-c", "Release", "--",
+  "--out", $StoreTmp,
+  "--version", $Version,
+  "--accept-license"
 )
-foreach ($fw in $frameworks) {
-  $src = "$sdkSrc\System\Library\Frameworks\$fw.framework"
-  $dst = "$StoreTmp\System\Library\Frameworks\$fw.framework"
-  if (Test-Path $src) { Copy-Tbd $src $dst } else { Write-Warning "framework not found in SDK: $fw" }
+
+if ($PackagePath) {
+  Write-Host "Using local package: $PackagePath"
+  $arguments += @("--package", $PackagePath, "--sha256", $entry.Sha256)
+} else {
+  New-Item -ItemType Directory -Force -Path $KeepPackage | Out-Null
+  $cached = Join-Path $KeepPackage $entry.File
+  Write-Host "Package URL: $($entry.Url)"
+  $arguments += @("--package", $entry.Url, "--sha256", $entry.Sha256, "--keep-package", $cached)
 }
 
-# All system/CRT/Swift .tbd stubs (libSystem, libobjc, libicucore, libswiftCore, ...).
-Copy-Tbd "$sdkSrc\usr\lib" "$StoreTmp\usr\lib"
+if ($Decoder) { $arguments += @("--decoder", $Decoder) }
 
-Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
+Write-Host "Running MacOSX.SDK.Fetch ..."
+& dotnet @arguments
+if ($LASTEXITCODE -ne 0) { throw "MacOSX.SDK.Fetch failed with exit code $LASTEXITCODE" }
 
-$sz = (Get-ChildItem $StoreTmp -Recurse -File | Measure-Object -Property Length -Sum).Sum
-Write-Host "Done. Filtered SDK at $StoreTmp ($([math]::Round($sz/1MB,0)) MB)"
+$size = (Get-ChildItem $StoreTmp -Recurse -File | Measure-Object -Property Length -Sum).Sum
 Write-Host ""
+Write-Host ("Done. Filtered SDK at {0} ({1:N0} MB)" -f $StoreTmp, ($size / 1MB))
 Write-Host "Next: dotnet pack toolsets\MacOSX.SDK\MacOSX.SDK.nuproj -o artifacts --force"
-
-# robocopy returns 1 ("files copied") which PowerShell would otherwise surface as
-# a failing exit code.
-exit 0

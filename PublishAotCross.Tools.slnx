@@ -84,4 +84,7 @@
   <Folder Name="/toolsets/LLD.Link.Toolsets.osx-arm64/build/">
     <File Path="toolsets/LLD.Link.Toolsets.osx-arm64/build/LLD.Link.Toolsets.osx-arm64.props" />
   </Folder>
+  <Folder Name="/toolsets/MacOSX.SDK.Fetch/">
+    <Project Path="toolsets/MacOSX.SDK.Fetch/MacOSX.SDK.Fetch.csproj" />
+  </Folder>
 </Solution>

@@ -20,7 +20,7 @@
 | 12 | `LLD.Link.Toolsets`（父包） | `$(LLDVersion).$(Revision)` | 4 KB |
 | 13 | `MacOSX.Symbols.Toolsets`（父包） | `$(LLDVersion).$(Revision)` | 4 KB |
 | 14 | `XWin.Store`（父包） | `$(XWinVersion).$(Revision)` | 4 KB |
-| 15 | `MacOSX.SDK` | `$(MacOSXSDKVersion).$(Revision)` | 15 MB |
+| 15 | `MacOSX.SDK` | `$(MacOSXSDKVersion).$(Revision)` | 15.7 MB |
 | 16 | `PublishAotCross.Tools` | `$(PublishAotCrossVersionPrefix).$(Revision)` | 10 MB |
 
 **推送顺序**：子包（1–11）→ 父包（12–14）→ SDK（15）→ 主包（16）。脚本已内置。

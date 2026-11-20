@@ -11,6 +11,7 @@
 **.log
 artifacts/**
 toolsets/LLVM-Source/
+toolsets/.pkg-cache/
 toolsets/MacOSX.SDK/.macosx-sdk-tmp/
 toolsets/MacOSX.Symbols.Toolsets/*/tools/
 toolsets/LLD.Link.Toolsets.*/tools/lld-link.zip

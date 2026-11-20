@@ -30,6 +30,7 @@ toolsets/
 ├── MacOSX.SDK/                          ← 过滤后的 macOS SDK NuGet 包（交叉到 osx-arm64）
 │   ├── MacOSX.SDK.nuproj
 │   └── .macosx-sdk-tmp/                 ← 过滤后的 SDK 子集（gitignored）
+├── MacOSX.SDK.Fetch/                    ← 维护者工具：Apple CLT .pkg → xar → pbzx → cpio → 过滤子集
 ├── MacOSX.Symbols.Toolsets/                  ← LLVM dsymutil（osx 交叉生成 .dSYM）
 │   ├── MacOSX.Symbols.Toolsets.nuproj        ← 父包（metapackage，依赖 4 个子包）
 │   ├── win-x64/ win-arm64/ linux-x64/ linux-arm64/
@@ -38,12 +39,12 @@ toolsets/
 │   │   └── tools/dsymutil[.exe]         ← gitignored，由脚本生成
 │   ├── README.md / LICENSE
 ├── LLVM-Source/                         ← 各平台 LLVM 二进制包（提取 lld-link / dsymutil 的来源）
-├── ToolsetsVersion.props                ← XWinVersion=0.10.0, LLDVersion=23.1.5, MacOSXSDKVersion=26.1, Revision=15, PublishAotCrossVersionPrefix=1.0.3
+├── ToolsetsVersion.props                ← XWinVersion=0.10.0, LLDVersion=23.1.5, MacOSXSDKVersion=27.2, Revision=15, PublishAotCrossVersionPrefix=1.0.3
 ├── xwin.exe                             ← xwin CLI v$(XWinVersion)（仅供维护者更新 store，不打包进 NuGet）
 ├── download-xwin-store.ps1              ← 下载 xwin SDK store（x64 + arm64 过滤打包到各自平台包）
 ├── download-lld-link.ps1                ← 从 LLVM 安装包提取各平台 lld-link
 ├── download-macosx-symbols.ps1          ← 从 LLVM 安装包提取各平台 dsymutil（linux 版自动 strip）
-└── download-macosx-sdk.ps1              ← 下载 + 过滤 macOS SDK（osx-arm64 交叉用）
+└── download-macosx-sdk.ps1              ← 下载 Apple CLT .pkg + 调 MacOSX.SDK.Fetch 过滤（osx-arm64 交叉用）
 
 src/
 ├── PublishAotCross.Tools.nuproj    ← 主 NuGet 包
@@ -71,7 +72,8 @@ test/
 | `src/build/Crosscompile.targets` | `CustomAotToolChain=xwin` → xwin 链路；`=zig` → zig 链路；`PublishAotCrossMacOSStrip` → osx 交叉的 dSYM + 剥离 |
 | `src/build/Scripts/SetPath.cs`   | 判断宿主/目标平台，设置`CustomAotToolChain`                                       |
 | `toolsets/download-macosx-symbols.ps1` | 提取各宿主 `dsymutil` 到 `MacOSX.Symbols.Toolsets/<rid>/tools/`（linux 版 strip） |
-| `toolsets/ToolsetsVersion.props` | `XWinVersion=0.10.0`、`LLDVersion=23.1.5`、`MacOSXSDKVersion=26.1`、`Revision=15`、`PublishAotCrossVersionPrefix=1.0.3` |
+| `toolsets/MacOSX.SDK.Fetch` | Apple CLT `.pkg` 解析（xar → pbzx → odc cpio）+ SDK 子集过滤 |
+| `toolsets/ToolsetsVersion.props` | `XWinVersion=0.10.0`、`LLDVersion=23.1.5`、`MacOSXSDKVersion=27.2`、`Revision=15`、`PublishAotCrossVersionPrefix=1.0.3` |
 | `win-x64`                        | `dotnet publish -c Release -r win-x64`                                            |
 | `win-arm64`                      | `dotnet publish -c Release -r win-arm64`                                          |
 | `linux-x64`                      | `dotnet publish -c Release -r linux-x64`                                          |

@@ -44,6 +44,19 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # The Apple package is immutable per SDK version (~68 MB); cache it so reruns skip
+      # the download. The extractor verifies the pinned SHA256 before using the file.
+      - name: Cache the Apple CLT SDK package
+        uses: actions/cache@v4
+        with:
+          path: toolsets/.pkg-cache
+          key: macosx-sdk-pkg-${{ runner.os }}-${{ hashFiles('toolsets/ToolsetsVersion.props', 'toolsets/download-macosx-sdk.ps1') }}
+
+      # NuGet.Config points at ./artifacts; it must exist before the tool restores.
+      - name: Create local NuGet feed folder
+        shell: bash
+        run: mkdir -p artifacts
+
       - name: Fetch and filter the macOS SDK
         shell: pwsh
         run: ./toolsets/download-macosx-sdk.ps1 -AcceptLicense

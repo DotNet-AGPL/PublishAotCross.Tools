@@ -8,7 +8,7 @@
     <Version>$(MacOSXSDKVersion).$(Revision)</Version>
     <Authors>Apple Inc.;DotNet-AGPL</Authors>
     <Company>DotNet-AGPL</Company>
-    <Description>Filtered macOS SDK $(MacOSXSDKVersion) (from joseluisq/macosx-sdks) for cross-compiling Native AOT to osx-arm64 from non-macOS hosts.</Description>
+    <Description>Filtered macOS SDK $(MacOSXSDKVersion) (from Apple's Command Line Tools package) for cross-compiling Native AOT to osx-arm64 from non-macOS hosts.</Description>
     <PackageProjectUrl>https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/MacOSX.SDK</PackageProjectUrl>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
