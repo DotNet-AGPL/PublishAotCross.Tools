@@ -102,7 +102,11 @@ test/
 - **`Revision` 全包共享**：主包依赖的就是 `…$(Revision)`。改动 `Revision` ⇒ **13 个包都要重发**（toolsets 通常只是"换版本号"）。
 - **主包 = 前段 + Revision**：前段（`PublishAotCrossVersionPrefix`）可单独调整。
 - **发布顺序：先 3 个父包 + 其余子包/toolset，最后主包**。否则用户还原与 CI 都会 `NU1102`（找不到 `.Revision` 版本）。
-- 线上历史：`0.6.0.5 … 0.6.0.12` → `1.0.1.13` → `1.0.2.13`（仅主包变化：只升"前段"，toolset 仍 `.13`）→ `1.0.3.14`（新增 `MacOSX.Symbols.Toolsets*`，主包改为依赖父包）。
+- 线上历史：`0.6.0.5 … 0.6.0.12` → `1.0.1.13` → `1.0.2.13`（仅主包变化：只升"前段"，toolset 仍 `.13`）
+  → **`1.0.3.14`（2026-11-20 已发布）**：新增 `MacOSX.Symbols.Toolsets*`（父包 + 4 子包）与
+  `LLD.Link.Toolsets` / `XWin.Store` 两个父包；主包改为只依赖父包（19 行 → 11 行）；
+  macOS 交叉默认 `StripSymbols=true`（生成 `.dSYM` + 剥离）。
+  发布脚本 `toolsets/publish-release.ps1`，清单 `docs/RELEASE-CHECKLIST.md`。
 
 ---
 
