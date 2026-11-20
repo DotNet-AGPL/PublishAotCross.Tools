@@ -26,14 +26,14 @@ $targets = @{
     Archive = "clang+llvm-$Version-x86_64-pc-windows-msvc.tar.xz"
     Member  = "clang+llvm-$Version-x86_64-pc-windows-msvc/bin/dsymutil.exe"
     Bin     = "dsymutil.exe"
-    PkgDir  = "MacOSX.SymbolTools/win-x64"
+    PkgDir  = "MacOSX.Symbols.Toolsets/win-x64"
     Strip   = $false
   }
   "win-arm64" = @{
     Archive = "clang+llvm-$Version-aarch64-pc-windows-msvc.tar.xz"
     Member  = "clang+llvm-$Version-aarch64-pc-windows-msvc/bin/dsymutil.exe"
     Bin     = "dsymutil.exe"
-    PkgDir  = "MacOSX.SymbolTools/win-arm64"
+    PkgDir  = "MacOSX.Symbols.Toolsets/win-arm64"
     Strip   = $false
   }
   "linux-x64" = @{
@@ -41,14 +41,14 @@ $targets = @{
     Archive = "LLVM-$Version-Linux-X64.tar.xz"
     Member  = "LLVM-$Version-Linux-X64/bin/dsymutil"
     Bin     = "dsymutil"
-    PkgDir  = "MacOSX.SymbolTools/linux-x64"
+    PkgDir  = "MacOSX.Symbols.Toolsets/linux-x64"
     Strip   = $true
   }
   "linux-arm64" = @{
     Archive = "LLVM-$Version-Linux-ARM64.tar.xz"
     Member  = "LLVM-$Version-Linux-ARM64/bin/dsymutil"
     Bin     = "dsymutil"
-    PkgDir  = "MacOSX.SymbolTools/linux-arm64"
+    PkgDir  = "MacOSX.Symbols.Toolsets/linux-arm64"
     Strip   = $true
   }
 }

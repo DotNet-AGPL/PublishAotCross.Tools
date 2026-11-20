@@ -47,7 +47,7 @@ Cross-compiling to `osx-arm64` from Windows/Linux is supported: the `MacOSX.SDK`
 
 #### Symbols and `.dSYM` (macOS targets)
 
-A cross-linked Mach-O contains **no DWARF** (the linker only records a debug map), so line info exists only in a `.dSYM`. The `MacOSX.SymbolTools.*` packages (referenced automatically) ship LLVM's `dsymutil` for every host, so `/p:StripSymbols=true` now works on a non-macOS host and produces the same result as a native macOS build:
+A cross-linked Mach-O contains **no DWARF** (the linker only records a debug map), so line info exists only in a `.dSYM`. The `MacOSX.Symbols.Toolsets.*` packages (referenced automatically) ship LLVM's `dsymutil` for every host, so `/p:StripSymbols=true` now works on a non-macOS host and produces the same result as a native macOS build:
 
 * `<app>.dSYM` next to the executable (managed code gets full file/line info);
 * `llvm-objcopy -x` on the app, i.e. Apple's `strip -x` (local symbols dropped, external symbols kept).

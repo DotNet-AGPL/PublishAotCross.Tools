@@ -18,7 +18,7 @@ toolsets/                                 各平台"内容包"（作为 NuGet �
 │   ├── LLD.Link.Toolsets.win-x64 / .win-arm64
 │   ├── LLD.Link.Toolsets.linux-x64 / .linux-arm64
 │   └── LLD.Link.Toolsets.osx-arm64       子包（tools/lld-link.zip 随仓库提交）
-├── MacOSX.SymbolTools/                   父包 → 4 个宿主的 LLVM dsymutil
+├── MacOSX.Symbols.Toolsets/                   父包 → 4 个宿主的 LLVM dsymutil
 │   ├── win-x64 / win-arm64 / linux-x64 / linux-arm64   子包（tools/ gitignored，脚本生成）
 ├── MacOSX.SDK                            过滤后的 macOS SDK 子集（osx 交叉用，无子包）
 ├── LLVM-Source/                          维护者用的 LLVM 原始安装包（gitignored）
@@ -94,15 +94,15 @@ test/
 | `XWin.Store`（父）/ `XWin.Store.*` | `$(XWinVersion).$(Revision)` |
 | `LLD.Link.Toolsets`（父）/ `LLD.Link.Toolsets.*` | `$(LLDVersion).$(Revision)` |
 | `MacOSX.SDK` | `$(MacOSXSDKVersion).$(Revision)` |
-| `MacOSX.SymbolTools`（父）/ `.SymbolTools.*` | `$(LLDVersion).$(Revision)` |
+| `MacOSX.Symbols.Toolsets`（父）/ `.Symbols.Toolsets.*` | `$(LLDVersion).$(Revision)` |
 
 要点：
 - **主包只依赖 4 个父包 + 6 个 Zig 包**（共 11 行）；子包（`.<rid>`）由父包引用。新增平台只改父包一行。
-- 父包（`XWin.Store` / `LLD.Link.Toolsets` / `MacOSX.SymbolTools`）**不含二进制**，CI 可在无内容的情况下直接打包。
+- 父包（`XWin.Store` / `LLD.Link.Toolsets` / `MacOSX.Symbols.Toolsets`）**不含二进制**，CI 可在无内容的情况下直接打包。
 - **`Revision` 全包共享**：主包依赖的就是 `…$(Revision)`。改动 `Revision` ⇒ **13 个包都要重发**（toolsets 通常只是"换版本号"）。
 - **主包 = 前段 + Revision**：前段（`PublishAotCrossVersionPrefix`）可单独调整。
 - **发布顺序：先 3 个父包 + 其余子包/toolset，最后主包**。否则用户还原与 CI 都会 `NU1102`（找不到 `.Revision` 版本）。
-- 线上历史：`0.6.0.5 … 0.6.0.12` → `1.0.1.13` → `1.0.2.13`（仅主包变化：只升"前段"，toolset 仍 `.13`）→ `1.0.3.14`（新增 `MacOSX.SymbolTools*`，主包改为依赖父包）。
+- 线上历史：`0.6.0.5 … 0.6.0.12` → `1.0.1.13` → `1.0.2.13`（仅主包变化：只升"前段"，toolset 仍 `.13`）→ `1.0.3.14`（新增 `MacOSX.Symbols.Toolsets*`，主包改为依赖父包）。
 
 ---
 
@@ -112,7 +112,7 @@ test/
 - 无需 Mac：Zig 链接 + 注入的 SDK 搜索路径即可产出 Mach-O。
 - **`StripSymbols` 语义**：`RuntimeIdentifier.StartsWith('osx') && !HostRuntimeIdentifier.StartsWith('osx')`
   ⇒ 默认 `false`（不剥离、不生成 .dSYM）；显式设 `true` 时**不再报错**，改由本包用
-  `MacOSX.SymbolTools` 的 LLVM `dsymutil` + `llvm-objcopy -x` 复刻 macOS 原生
+  `MacOSX.Symbols.Toolsets` 的 LLVM `dsymutil` + `llvm-objcopy -x` 复刻 macOS 原生
   `dsymutil && strip -no_code_signature_warning -x`（详见第 5 节）。
 - **Mach-O 里没有 DWARF**：链接器（ld64 / zig 内置的 ld64.lld）只写 **N_OSO debug map**，
   不写 `__DWARF` 段。实测：未剥离的 Mach-O（即使 `-g` 链接）用 `llvm-dwarfdump` 查 CU = 0
@@ -144,16 +144,16 @@ test/
   `zstd -dc --long=30 <file> | tar -xf - --wildcards '*/bin/llvm-objcopy'`。
 - LLVM 官方包很大（1.5–1.9GB/平台）；本机走代理被限速（~0.3MB/s），所以用 CI 下载。
 
-### 5.1 macOS 交叉的 dSYM（MacOSX.SymbolTools）★
+### 5.1 macOS 交叉的 dSYM（MacOSX.Symbols.Toolsets）★
 
 **为什么必须单独打包 `dsymutil`**
 - Xcode 的 `dsymutil`/`strip` 不可再分发；LLVM 上游的 `dsymutil` 是唯一替代（Apache-2.0 WITH LLVM-exception）。
 - 它静态链了 LLVM，体积大：win 52.2MB/宿主；linux 未 strip 136MB（我们 strip 到 94.6MB，WSL 实测仍可运行）。
 
-**包结构**（`toolsets/MacOSX.SymbolTools/`）
-- 父包 `MacOSX.SymbolTools`（metapackage）→ 依赖 4 个子包
-- 子包 `MacOSX.SymbolTools.<rid>`（win-x64 / win-arm64 / linux-x64 / linux-arm64），各自 `tools/dsymutil[.exe]` + `buildTransitive/*.props`
-- 4 个子包**分别**设置 `MacOSXSymbolTools<Host>Dir`（不能共用同一个属性，否则导入顺序决定胜者 → 取错宿主）；主 targets 按 `HostRuntimeIdentifier` 选。
+**包结构**（`toolsets/MacOSX.Symbols.Toolsets/`）
+- 父包 `MacOSX.Symbols.Toolsets`（metapackage）→ 依赖 4 个子包
+- 子包 `MacOSX.Symbols.Toolsets.<rid>`（win-x64 / win-arm64 / linux-x64 / linux-arm64），各自 `tools/dsymutil[.exe]` + `buildTransitive/*.props`
+- 4 个子包**分别**设置 `MacOSXSymbolsToolsets<Host>Dir`（不能共用同一个属性，否则导入顺序决定胜者 → 取错宿主）；主 targets 按 `HostRuntimeIdentifier` 选。
 - 二进制不入库（gitignored），由 `toolsets/download-macosx-symbols.ps1` 生成；nuproj 缺文件直接 `Error` 提示。
   - 该脚本对 `.tar.xz` 依次尝试：原生 bsdtar → PATH 上的 `xz`（Git for Windows/MSYS2）→ WSL → 完整 7-Zip（`7zr` 不支持 xz）。
 
@@ -185,7 +185,7 @@ test/
 - 非 macOS 的 lldb 不自动加载 dSYM：`target symbols add <bin>.dSYM/Contents/Resources/DWARF/<bin>`
   （传 `.dSYM` 目录会报 `invalid module path`）。
 
-**打包/验证（1.0.3.14 + SymbolTools 23.1.3.14 实测）**
+**打包/验证（1.0.3.14 + MacOSX.Symbols.Toolsets 23.1.3.14 实测）**
 - 4 个子包：win-x64 19.3MB、win-arm64 18.2MB、linux-x64 30.5MB、linux-arm64 29.4MB（共 ≈97MB）；父包 4KB（仅依赖）。
 - 主包依赖 4 个子包（nuspec 已核对），`StripSymbols=true` 端到端：exit=0、`<bin>.dSYM` 1.5MB、二进制 1.04MB、**0 条 warning**，
   lldb 解析出 `Program.cs:3`。
@@ -201,10 +201,10 @@ test/
 `.github/workflows/main.yml`（触发：`pull_request` + `workflow_dispatch`）
 - `sdk`：下载并过滤 macOS SDK → 打 `MacOSX.SDK` 包 → 上传 artifact。
 - `symbols`：抽出 4 个宿主的 `dsymutil`（`tools/*/tools` 走 actions/cache，命中就跳过 ~5GB 的 LLVM 归档下载）→
-  打 `MacOSX.SymbolTools` 父包 + 4 子包 → 上传 artifact。
+  打 `MacOSX.Symbols.Toolsets` 父包 + 4 子包 → 上传 artifact。
 - `metapkgs`：从随仓库提交的 `tools/lld-link.zip` 打出 5 个 LLD 子包 + `LLD.Link.Toolsets` / `XWin.Store` 两个父包
   （`XWin.Store.*` 内容 gitignored，仍从 feed 还原）→ 上传 artifact。
-- `build`（矩阵 Windows/Linux/macOS）：把 `MacOSX.SDK` + `MacOSX.SymbolTools*` 放入本地 `artifacts` feed，
+- `build`（矩阵 Windows/Linux/macOS）：把 `MacOSX.SDK` + `MacOSX.Symbols.Toolsets*` 放入本地 `artifacts` feed，
   **本地打主包**（合成版本 `0.0.0-ci`），再交叉编译 `TestNupkg`。
 - `cross_osx_arm64`（Windows 宿主）：默认产物 + **额外跑一次 `-p:DebugType=portable -p:StripSymbols=true`**，
   断言 `<bin>.dSYM` 存在且 ≥100KB、Mach-O magic 合法、二进制确实变小；两次发布之间会清 `bin/obj`
@@ -213,7 +213,7 @@ test/
 - `validate`：跑 linux-x64。
 - CI **不推送** NuGet；`XWin.Store.*` / `LLD.*` 内容 gitignored，CI 只能从 feed **还原**它们。
   ⇒ **改 `Revision` 后必须先发布这些包，CI 才能跑通。**
-  `MacOSX.SDK` / `MacOSX.SymbolTools*` 例外：它们由 CI 自己从源码/归档构建。
+  `MacOSX.SDK` / `MacOSX.Symbols.Toolsets*` 例外：它们由 CI 自己从源码/归档构建。
 
 `.github/workflows/fetch-objcopy.yml`：手动工具，获取/更新内置 `llvm-objcopy`。
 

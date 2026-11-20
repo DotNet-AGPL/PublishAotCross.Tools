@@ -21,19 +21,19 @@
 
     <!-- ILCompiler's Apple branch runs `dsymutil <bin> && strip -no_code_signature_warning -x <bin>`,
          which needs the Xcode tools a Windows/Linux host does not have. Keep that branch off
-         and reproduce it with the LLVM tools from the MacOSX.SymbolTools packages (target
+         and reproduce it with the LLVM tools from the MacOSX.Symbols.Toolsets packages (target
          PublishAotCrossMacOSStrip below): the outcome is the .dSYM + local-symbol strip that a
          macOS build produces. -->
     <_PublishAotCrossMacOSStrip Condition="'$(_IsCrossCompilingToMacOS)' == 'true' and '$(StripSymbols)' == 'true'">true</_PublishAotCrossMacOSStrip>
     <StripSymbols Condition="'$(_PublishAotCrossMacOSStrip)' == 'true'">false</StripSymbols>
 
-    <!-- Host-side dsymutil / llvm-objcopy, injected by the MacOSX.SymbolTools.<rid> packages. -->
-    <_MacOSXSymbolToolsDir Condition="'$(HostRuntimeIdentifier)' == 'win-x64'">$(MacOSXSymbolToolsWinX64Dir)</_MacOSXSymbolToolsDir>
-    <_MacOSXSymbolToolsDir Condition="'$(HostRuntimeIdentifier)' == 'win-arm64'">$(MacOSXSymbolToolsWinArm64Dir)</_MacOSXSymbolToolsDir>
-    <_MacOSXSymbolToolsDir Condition="'$(HostRuntimeIdentifier)' == 'linux-x64'">$(MacOSXSymbolToolsLinuxX64Dir)</_MacOSXSymbolToolsDir>
-    <_MacOSXSymbolToolsDir Condition="'$(HostRuntimeIdentifier)' == 'linux-arm64'">$(MacOSXSymbolToolsLinuxArm64Dir)</_MacOSXSymbolToolsDir>
+    <!-- Host-side dsymutil / llvm-objcopy, injected by the MacOSX.Symbols.Toolsets.<rid> packages. -->
+    <_MacOSXSymbolsToolsetsDir Condition="'$(HostRuntimeIdentifier)' == 'win-x64'">$(MacOSXSymbolsToolsetsWinX64Dir)</_MacOSXSymbolsToolsetsDir>
+    <_MacOSXSymbolsToolsetsDir Condition="'$(HostRuntimeIdentifier)' == 'win-arm64'">$(MacOSXSymbolsToolsetsWinArm64Dir)</_MacOSXSymbolsToolsetsDir>
+    <_MacOSXSymbolsToolsetsDir Condition="'$(HostRuntimeIdentifier)' == 'linux-x64'">$(MacOSXSymbolsToolsetsLinuxX64Dir)</_MacOSXSymbolsToolsetsDir>
+    <_MacOSXSymbolsToolsetsDir Condition="'$(HostRuntimeIdentifier)' == 'linux-arm64'">$(MacOSXSymbolsToolsetsLinuxArm64Dir)</_MacOSXSymbolsToolsetsDir>
     <_MacOSXHostExeSuffix Condition="$(HostRuntimeIdentifier.StartsWith('win'))">.exe</_MacOSXHostExeSuffix>
-    <_MacOSXDsymutil Condition="'$(_MacOSXSymbolToolsDir)' != ''">$(_MacOSXSymbolToolsDir)dsymutil$(_MacOSXHostExeSuffix)</_MacOSXDsymutil>
+    <_MacOSXDsymutil Condition="'$(_MacOSXSymbolsToolsetsDir)' != ''">$(_MacOSXSymbolsToolsetsDir)dsymutil$(_MacOSXHostExeSuffix)</_MacOSXDsymutil>
     <!-- win-arm64 hosts reuse the win-x64 llvm-objcopy (runs under emulation); that is the
          same mapping SetPath.cs uses when prepending the strip tool to PATH. -->
     <_MacOSXObjcopyHost Condition="'$(HostRuntimeIdentifier)' == 'win-arm64'">win-x64</_MacOSXObjcopyHost>
@@ -241,7 +241,7 @@
 
   <!-- Non-macOS host -> macOS target: reproduce ILCompiler's Apple post-link step
        (`dsymutil <bin> && strip -no_code_signature_warning -x <bin>`) with the LLVM
-       tools shipped in MacOSX.SymbolTools.<host-rid>.
+       tools shipped in MacOSX.Symbols.Toolsets.<host-rid>.
        dsymutil must run first: `-x` drops the debug map it rebuilds the .dSYM from. -->
   <Target Name="PublishAotCrossMacOSStrip"
           AfterTargets="LinkNative"
@@ -250,9 +250,9 @@
           Outputs="$(NativeBinary).stripped">
 
     <Error Condition="'$(_MacOSXDsymutil)' == ''"
-           Text="StripSymbols=true for a cross-compiled macOS target ($(RuntimeIdentifier) on $(HostRuntimeIdentifier)) needs the 'MacOSX.SymbolTools.$(HostRuntimeIdentifier)' package, which PublishAotCross.Tools depends on. Restore the project again, or set StripSymbols=false to skip symbol stripping." />
+           Text="StripSymbols=true for a cross-compiled macOS target ($(RuntimeIdentifier) on $(HostRuntimeIdentifier)) needs the 'MacOSX.Symbols.Toolsets.$(HostRuntimeIdentifier)' package, which PublishAotCross.Tools depends on. Restore the project again, or set StripSymbols=false to skip symbol stripping." />
     <Error Condition="'$(_MacOSXDsymutil)' != '' and !Exists('$(_MacOSXDsymutil)')"
-           Text="dsymutil was expected at '$(_MacOSXDsymutil)' (from MacOSX.SymbolTools.$(HostRuntimeIdentifier)) but the file does not exist. Re-restore the project, or set StripSymbols=false." />
+           Text="dsymutil was expected at '$(_MacOSXDsymutil)' (from MacOSX.Symbols.Toolsets.$(HostRuntimeIdentifier)) but the file does not exist. Re-restore the project, or set StripSymbols=false." />
     <Error Condition="'$(_MacOSXDsymutil)' != '' and !Exists('$(_MacOSXObjcopy)')"
            Text="llvm-objcopy was expected at '$(_MacOSXObjcopy)' but the file does not exist. Reinstall PublishAotCross.Tools, or set StripSymbols=false." />
     <Error Condition="'$(_MacOSXDsymutil)' != '' and !Exists('$(NativeBinary)')"

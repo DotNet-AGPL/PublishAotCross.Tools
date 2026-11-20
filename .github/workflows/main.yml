@@ -7,7 +7,7 @@ name: CI
 # Important constraints
 #   * The XWin.Store.* / LLD.Link.Toolsets.* package contents are gitignored and
 #     produced by maintainers, so CI REBUILDS only the MacOSX.SDK and
-#     MacOSX.SymbolTools.* packages (from downloaded archives) plus the main
+#     MacOSX.Symbols.Toolsets.* packages (from downloaded archives) plus the main
 #     package; the others are restored from the feeds.
 #   * The main PublishAotCross.Tools package is built by CI from source (packed
 #     into the local ./artifacts feed under a synthetic version), so no NuGet push
@@ -59,10 +59,10 @@ jobs:
           path: artifacts/MacOSX.SDK.*.nupkg
           if-no-files-found: error
 
-  # Build the MacOSX.SymbolTools.* packages (LLVM dsymutil per host) once and share
+  # Build the MacOSX.Symbols.Toolsets.* packages (LLVM dsymutil per host) once and share
   # them with the jobs that have to restore PublishAotCross.Tools.
   symbols:
-    name: Build MacOSX.SymbolTools
+    name: Build MacOSX.Symbols.Toolsets
     runs-on: windows-latest
     steps:
       - name: Checkout repo
@@ -79,7 +79,7 @@ jobs:
         id: dsymutil-cache
         uses: actions/cache@v4
         with:
-          path: toolsets/MacOSX.SymbolTools/*/tools
+          path: toolsets/MacOSX.Symbols.Toolsets/*/tools
           key: dsymutil-${{ runner.os }}-${{ hashFiles('toolsets/ToolsetsVersion.props') }}
 
       - name: Extract dsymutil for every host
@@ -87,20 +87,20 @@ jobs:
         shell: pwsh
         run: ./toolsets/download-macosx-symbols.ps1 -Platform all
 
-      - name: Pack MacOSX.SymbolTools packages
+      - name: Pack MacOSX.Symbols.Toolsets packages
         shell: pwsh
         run: |
-          dotnet pack toolsets/MacOSX.SymbolTools/win-x64 -c Release -o artifacts --force
-          dotnet pack toolsets/MacOSX.SymbolTools/win-arm64 -c Release -o artifacts --force
-          dotnet pack toolsets/MacOSX.SymbolTools/linux-x64 -c Release -o artifacts --force
-          dotnet pack toolsets/MacOSX.SymbolTools/linux-arm64 -c Release -o artifacts --force
-          dotnet pack toolsets/MacOSX.SymbolTools -c Release -o artifacts --force
+          dotnet pack toolsets/MacOSX.Symbols.Toolsets/win-x64 -c Release -o artifacts --force
+          dotnet pack toolsets/MacOSX.Symbols.Toolsets/win-arm64 -c Release -o artifacts --force
+          dotnet pack toolsets/MacOSX.Symbols.Toolsets/linux-x64 -c Release -o artifacts --force
+          dotnet pack toolsets/MacOSX.Symbols.Toolsets/linux-arm64 -c Release -o artifacts --force
+          dotnet pack toolsets/MacOSX.Symbols.Toolsets -c Release -o artifacts --force
 
-      - name: Upload MacOSX.SymbolTools packages
+      - name: Upload MacOSX.Symbols.Toolsets packages
         uses: actions/upload-artifact@v4
         with:
-          name: macosx-symboltools-nupkg
-          path: artifacts/MacOSX.SymbolTools*.nupkg
+          name: macosx-symbols-toolsets-nupkg
+          path: artifacts/MacOSX.Symbols.Toolsets*.nupkg
           if-no-files-found: error
 
   # The meta packages carry no binaries, so they can be packed without their
@@ -189,10 +189,10 @@ jobs:
           name: macosx-sdk-nupkg
           path: artifacts
 
-      - name: Download MacOSX.SymbolTools into the local feed
+      - name: Download MacOSX.Symbols.Toolsets into the local feed
         uses: actions/download-artifact@v4
         with:
-          name: macosx-symboltools-nupkg
+          name: macosx-symbols-toolsets-nupkg
           path: artifacts
 
       - name: Download meta packages into the local feed
@@ -235,7 +235,7 @@ jobs:
 
   # Cross-compile osx-arm64 from a Windows host. The macOS SDK subset is provided
   # automatically by the MacOSX.SDK package (built by the "sdk" job) and dsymutil by
-  # MacOSX.SymbolTools (built by the "symbols" job); no NuGet push is involved.
+  # MacOSX.Symbols.Toolsets (built by the "symbols" job); no NuGet push is involved.
   cross_osx_arm64:
     name: Cross-compile osx-arm64 (Windows host)
     needs: [sdk, symbols, metapkgs]
@@ -262,10 +262,10 @@ jobs:
           name: macosx-sdk-nupkg
           path: artifacts
 
-      - name: Download MacOSX.SymbolTools into the local feed
+      - name: Download MacOSX.Symbols.Toolsets into the local feed
         uses: actions/download-artifact@v4
         with:
-          name: macosx-symboltools-nupkg
+          name: macosx-symbols-toolsets-nupkg
           path: artifacts
 
       - name: Download meta packages into the local feed
@@ -288,7 +288,7 @@ jobs:
           -c Release -f net10.0 -r osx-arm64 -o output/osx-arm64
           -p:PublishAotCrossVersion=${{ env.LOCAL_PKG_VERSION }}
 
-      # Exercises the MacOSX.SymbolTools path: StripSymbols=true must produce a .dSYM
+      # Exercises the MacOSX.Symbols.Toolsets path: StripSymbols=true must produce a .dSYM
       # and strip local symbols instead of failing on the missing Xcode tools.
       # The obj/bin wipe is required: ILC's incremental check ignores the -g argument,
       # so it would otherwise reuse the object built without debug info above.

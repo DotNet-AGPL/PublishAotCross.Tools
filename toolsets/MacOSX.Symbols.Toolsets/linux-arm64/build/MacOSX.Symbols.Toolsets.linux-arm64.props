@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup>
+    <MacOSXSymbolsToolsetsLinuxArm64Dir>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)../tools/'))</MacOSXSymbolsToolsetsLinuxArm64Dir>
+  </PropertyGroup>
+</Project>

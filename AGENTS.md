@@ -30,11 +30,11 @@ toolsets/
 ├── MacOSX.SDK/                          ← 过滤后的 macOS SDK NuGet 包（交叉到 osx-arm64）
 │   ├── MacOSX.SDK.nuproj
 │   └── .macosx-sdk-tmp/                 ← 过滤后的 SDK 子集（gitignored）
-├── MacOSX.SymbolTools/                  ← LLVM dsymutil（osx 交叉生成 .dSYM）
-│   ├── MacOSX.SymbolTools.nuproj        ← 父包（metapackage，依赖 4 个子包）
+├── MacOSX.Symbols.Toolsets/                  ← LLVM dsymutil（osx 交叉生成 .dSYM）
+│   ├── MacOSX.Symbols.Toolsets.nuproj        ← 父包（metapackage，依赖 4 个子包）
 │   ├── win-x64/ win-arm64/ linux-x64/ linux-arm64/
-│   │   ├── MacOSX.SymbolTools.<rid>.nuproj
-│   │   ├── build/MacOSX.SymbolTools.<rid>.props
+│   │   ├── MacOSX.Symbols.Toolsets.<rid>.nuproj
+│   │   ├── build/MacOSX.Symbols.Toolsets.<rid>.props
 │   │   └── tools/dsymutil[.exe]         ← gitignored，由脚本生成
 │   ├── README.md / LICENSE
 ├── LLVM-Source/                         ← 各平台 LLVM 二进制包（提取 lld-link / dsymutil 的来源）
@@ -70,7 +70,7 @@ test/
 | ---------------------------------- | ----------------------------------------------------------------------------------- |
 | `src/build/Crosscompile.targets` | `CustomAotToolChain=xwin` → xwin 链路；`=zig` → zig 链路；`PublishAotCrossMacOSStrip` → osx 交叉的 dSYM + 剥离 |
 | `src/build/Scripts/SetPath.cs`   | 判断宿主/目标平台，设置`CustomAotToolChain`                                       |
-| `toolsets/download-macosx-symbols.ps1` | 提取各宿主 `dsymutil` 到 `MacOSX.SymbolTools/<rid>/tools/`（linux 版 strip） |
+| `toolsets/download-macosx-symbols.ps1` | 提取各宿主 `dsymutil` 到 `MacOSX.Symbols.Toolsets/<rid>/tools/`（linux 版 strip） |
 | `toolsets/ToolsetsVersion.props` | `XWinVersion=0.10.0`、`LLDVersion=23.1.3`、`MacOSXSDKVersion=26.1`、`Revision=14`、`PublishAotCrossVersionPrefix=1.0.3` |
 | `win-x64`                        | `dotnet publish -c Release -r win-x64`                                            |
 | `win-arm64`                      | `dotnet publish -c Release -r win-arm64`                                          |
@@ -118,7 +118,7 @@ test/
 #       版本号与 LLVM 版本一一对应
 ```
 
-## MacOSX.SymbolTools
+## MacOSX.Symbols.Toolsets
 
 ```bash
 # 作用：非 macOS 宿主交叉到 osx 时，ld64 永不把 DWARF 写进 Mach-O（只有 N_OSO debug map），
@@ -130,9 +130,9 @@ test/
 #      和 clang+llvm-<ver>-{x86_64,aarch64}-pc-windows-msvc.tar.xz
 #   2. toolsets\download-macosx-symbols.ps1 -Version 23.2.0 -Platform all
 #      （linux 版自动用 src/build/llvm-objcopy/win-x64/llvm-objcopy.exe strip，136MB→95MB）
-#   3. toolsets/ToolsetsVersion.props → LLDVersion=23.2.0（SymbolTools 复用该版本号）
-#   4. dotnet pack toolsets\MacOSX.SymbolTools\win-x64 -o artifacts --force   # 4 个子包
-#      dotnet pack toolsets\MacOSX.SymbolTools -o artifacts --force           # 父包（需子包已在 feed）
+#   3. toolsets/ToolsetsVersion.props → LLDVersion=23.2.0（MacOSX.Symbols.Toolsets 复用该版本号）
+#   4. dotnet pack toolsets\MacOSX.Symbols.Toolsets\win-x64 -o artifacts --force   # 4 个子包
+#      dotnet pack toolsets\MacOSX.Symbols.Toolsets -o artifacts --force           # 父包（需子包已在 feed）
 #   5. dotnet nuget push ...（先子包后父包）
 
 # 体积：win 52.2MB/宿主（nupkg ≈19MB）、linux 136MB→95MB（nupkg ≈30MB），4 宿主合计 ≈100MB nupkg
@@ -156,7 +156,7 @@ test/
 
 ```bash
 # 依赖结构（11 个 PackageReference，全部是"父包 + Zig"）：
-#   XWin.Store、MacOSX.SDK、MacOSX.SymbolTools、LLD.Link.Toolsets + 6 个 Vezel.Zig.Toolsets
+#   XWin.Store、MacOSX.SDK、MacOSX.Symbols.Toolsets、LLD.Link.Toolsets + 6 个 Vezel.Zig.Toolsets
 #   ⇒ 子包（.<rid>）只由父包引用，主包不再逐个列平台；新增平台只改父包一行。
 
 # 1. 修改版本号：toolsets/ToolsetsVersion.props → PublishAotCrossVersionPrefix（前段）
@@ -165,7 +165,7 @@ test/
 dotnet pack src\PublishAotCross.Tools.nuproj -o artifacts --force
 # 3. 推送（示例版本 1.0.3.14）
 dotnet nuget push artifacts\PublishAotCross.Tools.1.0.3.14.nupkg --api-key <key> --source https://api.nuget.org/v3/index.json
-# 注意推送顺序：父包（LLD.Link.Toolsets / XWin.Store / MacOSX.SymbolTools）必须在主包之前
+# 注意推送顺序：父包（LLD.Link.Toolsets / XWin.Store / MacOSX.Symbols.Toolsets）必须在主包之前
 ```
 
 ## 测试

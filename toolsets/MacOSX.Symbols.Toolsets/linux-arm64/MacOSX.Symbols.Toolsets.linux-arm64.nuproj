@@ -4,19 +4,19 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
-    <PackageId>MacOSX.SymbolTools.linux-x64</PackageId>
+    <PackageId>MacOSX.Symbols.Toolsets.linux-arm64</PackageId>
     <Version>$(LLDVersion).$(Revision)</Version>
     <Authors>LLVM Project;DotNet-AGPL</Authors>
     <Company>DotNet-AGPL</Company>
-    <Description>LLVM dsymutil for the linux-x64 host (stripped). Generates the .dSYM bundle when cross-compiling Native AOT to macOS from a non-macOS host (ld64 never emits DWARF into Mach-O).</Description>
-    <PackageProjectUrl>https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/MacOSX.SymbolTools/linux-x64</PackageProjectUrl>
+    <Description>LLVM dsymutil for the linux-arm64 host (stripped). Generates the .dSYM bundle when cross-compiling Native AOT to macOS from a non-macOS host (ld64 never emits DWARF into Mach-O).</Description>
+    <PackageProjectUrl>https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/MacOSX.Symbols.Toolsets/linux-arm64</PackageProjectUrl>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
     <None Include="tools/dsymutil" Pack="true" PackagePath="tools" />
-    <None Include="build/MacOSX.SymbolTools.linux-x64.props" Pack="true" PackagePath="buildTransitive" />
+    <None Include="build/MacOSX.Symbols.Toolsets.linux-arm64.props" Pack="true" PackagePath="buildTransitive" />
     <None Include="../README.md" Pack="true" PackagePath="/" />
     <None Include="../LICENSE" Pack="true" PackagePath="/" />
     <None Include="../../../NOTICE" Pack="true" PackagePath="/" />
@@ -25,6 +25,6 @@
 
   <Target Name="EnsureDsymutilPresent" BeforeTargets="Build">
     <Error Condition="!Exists('$(MSBuildProjectDirectory)/tools/dsymutil')"
-           Text="tools/dsymutil is missing. Run 'toolsets/download-macosx-symbols.ps1 -Platform linux-x64' first (it extracts and strips the binary from toolsets/LLVM-Source)." />
+           Text="tools/dsymutil is missing. Run 'toolsets/download-macosx-symbols.ps1 -Platform linux-arm64' first (it extracts and strips the binary from toolsets/LLVM-Source)." />
   </Target>
 </Project>

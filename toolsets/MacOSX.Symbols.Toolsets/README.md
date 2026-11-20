@@ -1,4 +1,4 @@
-# MacOSX.SymbolTools
+# MacOSX.Symbols.Toolsets
 
 **LLVM `dsymutil` for non-macOS hosts. It is a tool package, not a symbols package: it
 ships no debug information.**
@@ -15,17 +15,17 @@ the LLVM upstream build for every supported host.
 
 **LLVM version:** 23.1.3
 
-**Source:** https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/MacOSX.SymbolTools
+**Source:** https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/MacOSX.Symbols.Toolsets
 
 ## Packages
 
 | Package | Host | Binary | Size (nupkg) |
 | --- | --- | --- | --- |
-| `MacOSX.SymbolTools` | meta package | references all four below | ~100 MB total |
-| `MacOSX.SymbolTools.win-x64` | win-x64 | `tools/dsymutil.exe` | ~19 MB |
-| `MacOSX.SymbolTools.win-arm64` | win-arm64 | `tools/dsymutil.exe` | ~19 MB |
-| `MacOSX.SymbolTools.linux-x64` | linux-x64 | `tools/dsymutil` (stripped) | ~30 MB |
-| `MacOSX.SymbolTools.linux-arm64` | linux-arm64 | `tools/dsymutil` (stripped) | ~30 MB |
+| `MacOSX.Symbols.Toolsets` | meta package | references all four below | ~100 MB total |
+| `MacOSX.Symbols.Toolsets.win-x64` | win-x64 | `tools/dsymutil.exe` | ~19 MB |
+| `MacOSX.Symbols.Toolsets.win-arm64` | win-arm64 | `tools/dsymutil.exe` | ~19 MB |
+| `MacOSX.Symbols.Toolsets.linux-x64` | linux-x64 | `tools/dsymutil` (stripped) | ~30 MB |
+| `MacOSX.Symbols.Toolsets.linux-arm64` | linux-arm64 | `tools/dsymutil` (stripped) | ~30 MB |
 
 macOS hosts are not covered on purpose: Xcode already provides `dsymutil` and `strip`.
 
@@ -34,10 +34,10 @@ macOS hosts are not covered on purpose: Xcode already provides `dsymutil` and `s
 Each per-host package sets a property with the directory containing the binary:
 
 ```xml
-<MacOSXSymbolToolsWinX64Dir>…/tools/</MacOSXSymbolToolsWinX64Dir>
-<MacOSXSymbolToolsWinArm64Dir>…/tools/</MacOSXSymbolToolsWinArm64Dir>
-<MacOSXSymbolToolsLinuxX64Dir>…/tools/</MacOSXSymbolToolsLinuxX64Dir>
-<MacOSXSymbolToolsLinuxArm64Dir>…/tools/</MacOSXSymbolToolsLinuxArm64Dir>
+<MacOSXSymbolsToolsetsWinX64Dir>…/tools/</MacOSXSymbolsToolsetsWinX64Dir>
+<MacOSXSymbolsToolsetsWinArm64Dir>…/tools/</MacOSXSymbolsToolsetsWinArm64Dir>
+<MacOSXSymbolsToolsetsLinuxX64Dir>…/tools/</MacOSXSymbolsToolsetsLinuxX64Dir>
+<MacOSXSymbolsToolsetsLinuxArm64Dir>…/tools/</MacOSXSymbolsToolsetsLinuxArm64Dir>
 ```
 
 `PublishAotCross.Tools` picks the one matching the host and, when `StripSymbols=true`
@@ -56,7 +56,7 @@ Nothing is added to `PATH`, so the system `strip` is never shadowed.
 is needed. Only when you use this package standalone:
 
 ```xml
-<PackageReference Include="MacOSX.SymbolTools.win-x64" Version="23.1.3.*" PrivateAssets="all" />
+<PackageReference Include="MacOSX.Symbols.Toolsets.win-x64" Version="23.1.3.*" PrivateAssets="all" />
 ```
 
 ## Known limitations
