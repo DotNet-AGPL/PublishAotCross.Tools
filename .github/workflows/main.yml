@@ -104,7 +104,8 @@ jobs:
           if-no-files-found: error
 
   # The meta packages carry no binaries, so they can be packed without their
-  # (gitignored) content. Their children come from the feeds during restore.
+  # (gitignored) content. The lld-link children can be rebuilt too: their zips are
+  # committed, so CI does not depend on an already published version.
   metapkgs:
     name: Build meta packages
     runs-on: windows-latest
@@ -122,7 +123,16 @@ jobs:
         shell: bash
         run: mkdir -p artifacts
 
-      - name: Pack LLD.Link.Toolsets and XWin.Store
+      - name: Pack LLD.Link.Toolsets children
+        shell: pwsh
+        run: |
+          dotnet pack toolsets/LLD.Link.Toolsets.win-x64 -c Release -o artifacts --force
+          dotnet pack toolsets/LLD.Link.Toolsets.win-arm64 -c Release -o artifacts --force
+          dotnet pack toolsets/LLD.Link.Toolsets.linux-x64 -c Release -o artifacts --force
+          dotnet pack toolsets/LLD.Link.Toolsets.linux-arm64 -c Release -o artifacts --force
+          dotnet pack toolsets/LLD.Link.Toolsets.osx-arm64 -c Release -o artifacts --force
+
+      - name: Pack meta packages
         shell: pwsh
         run: |
           dotnet pack toolsets/LLD.Link.Toolsets -c Release -o artifacts --force

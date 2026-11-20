@@ -12,10 +12,15 @@
 ```
 toolsets/                                 各平台"内容包"（作为 NuGet 被主包引用）
 ├── ToolsetsVersion.props                 ★ 全仓库版本的单一来源
-├── XWin.Store/                           父包 → x64 / arm64 导入库 store（内容 gitignored）
-├── LLD.Link.Toolsets/                    父包 → 5 个平台的 lld-link
+├── XWin.Store/                           父包 → x64 / arm64 导入库 store
+│   ├── XWin.Store.x64 / .arm64           子包（.xwin-store-tmp/ 内容 gitignored）
+├── LLD.Link.Toolsets/                    父包 → 5 个平台的 lld-link（无内容）
+│   ├── LLD.Link.Toolsets.win-x64 / .win-arm64
+│   ├── LLD.Link.Toolsets.linux-x64 / .linux-arm64
+│   └── LLD.Link.Toolsets.osx-arm64       子包（tools/lld-link.zip 随仓库提交）
 ├── MacOSX.SymbolTools/                   父包 → 4 个宿主的 LLVM dsymutil
-├── MacOSX.SDK                            过滤后的 macOS SDK 子集（osx 交叉用）
+│   ├── win-x64 / win-arm64 / linux-x64 / linux-arm64   子包（tools/ gitignored，脚本生成）
+├── MacOSX.SDK                            过滤后的 macOS SDK 子集（osx 交叉用，无子包）
 ├── LLVM-Source/                          维护者用的 LLVM 原始安装包（gitignored）
 └── download-*.ps1                        维护者脚本（重新生成上面各包的内容）
 
@@ -197,7 +202,8 @@ test/
 - `sdk`：下载并过滤 macOS SDK → 打 `MacOSX.SDK` 包 → 上传 artifact。
 - `symbols`：抽出 4 个宿主的 `dsymutil`（`tools/*/tools` 走 actions/cache，命中就跳过 ~5GB 的 LLVM 归档下载）→
   打 `MacOSX.SymbolTools` 父包 + 4 子包 → 上传 artifact。
-- `metapkgs`：打 `LLD.Link.Toolsets` 与 `XWin.Store` 两个父包（不含二进制，秒级）→ 上传 artifact。
+- `metapkgs`：从随仓库提交的 `tools/lld-link.zip` 打出 5 个 LLD 子包 + `LLD.Link.Toolsets` / `XWin.Store` 两个父包
+  （`XWin.Store.*` 内容 gitignored，仍从 feed 还原）→ 上传 artifact。
 - `build`（矩阵 Windows/Linux/macOS）：把 `MacOSX.SDK` + `MacOSX.SymbolTools*` 放入本地 `artifacts` feed，
   **本地打主包**（合成版本 `0.0.0-ci`），再交叉编译 `TestNupkg`。
 - `cross_osx_arm64`（Windows 宿主）：默认产物 + **额外跑一次 `-p:DebugType=portable -p:StripSymbols=true`**，
