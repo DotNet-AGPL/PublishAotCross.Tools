@@ -207,8 +207,8 @@ test/
 - `sdk`：下载并过滤 macOS SDK → 打 `MacOSX.SDK` 包 → 上传 artifact。
 - `symbols`：抽出 4 个宿主的 `dsymutil`（`tools/*/tools` 走 actions/cache，命中就跳过 ~5GB 的 LLVM 归档下载）→
   打 `MacOSX.Symbols.Toolsets` 父包 + 4 子包 → 上传 artifact。
-- `metapkgs`：从随仓库提交的 `tools/lld-link.zip.partNN`（打包时合并）打出 5 个 LLD 子包 + `LLD.Link.Toolsets` / `XWin.Store` 两个父包
-  （`XWin.Store.*` 内容 gitignored，仍从 feed 还原）→ 上传 artifact。
+- `metapkgs`：重建 `XWin.Store`（xwin splat，1.4 GB store 走 actions/cache）+ 从随仓库提交的 `tools/lld-link.zip.partNN`（打包时合并）
+  打出 5 个 LLD 子包 + 2 个 XWin 子包 + 3 个父包 → 上传 artifact。
 - `build`（矩阵 Windows/Linux/macOS）：把 `MacOSX.SDK` + `MacOSX.Symbols.Toolsets*` 放入本地 `artifacts` feed，
   **本地打主包**（合成版本 `0.0.0-ci`），再交叉编译 `TestNupkg`。
 - `cross_osx_arm64`（Windows 宿主）：**默认产物**（必须带 `.dSYM`）+ `-p:DebugType=portable -p:StripSymbols=false`（对照基准）

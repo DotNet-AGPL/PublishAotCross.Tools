@@ -123,6 +123,28 @@ jobs:
         shell: bash
         run: mkdir -p artifacts
 
+      # The Windows SDK store content is gitignored, so it is rebuilt here from
+      # xwin. The filtered stores are ~1.4 GB, hence the cache.
+      - name: Cache xwin store
+        id: xwin-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            toolsets/XWin.Store.x64/.xwin-store-tmp
+            toolsets/XWin.Store.arm64/.xwin-store-tmp
+          key: xwin-store-${{ runner.os }}-${{ hashFiles('toolsets/ToolsetsVersion.props', 'toolsets/download-xwin-store.ps1') }}
+
+      - name: Fetch xwin store
+        if: steps.xwin-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: ./toolsets/download-xwin-store.ps1
+
+      - name: Pack XWin.Store children
+        shell: pwsh
+        run: |
+          dotnet pack toolsets/XWin.Store.x64 -c Release -o artifacts --force
+          dotnet pack toolsets/XWin.Store.arm64 -c Release -o artifacts --force
+
       - name: Pack LLD.Link.Toolsets children
         shell: pwsh
         run: |
