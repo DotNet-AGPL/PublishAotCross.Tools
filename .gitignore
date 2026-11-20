@@ -12,6 +12,7 @@
 artifacts/**
 toolsets/LLVM-Source/
 toolsets/MacOSX.SDK/.macosx-sdk-tmp/
+toolsets/MacOSX.SymbolTools/*/tools/
 toolsets/LLD.Link.Toolsets.win-x64/tools/lld-link.exe
 toolsets/LLD.Link.Toolsets.linux-x64/tools/lld-link
 toolsets/LLD.Link.Toolsets.linux-arm64/tools/lld-link

@@ -43,7 +43,16 @@ The toolchain selection prints a short diagnostic line during build (which toolc
 
 This package also supports Windows-to-Windows Native AOT compilation without Visual Studio C++ tools, using xwin SDK store + lld-link + Zig toolchain.
 
-Cross-compiling to `osx-arm64` from Windows/Linux is supported: the `MacOSX.SDK` package (referenced automatically) supplies a filtered macOS SDK subset, and Zig performs the linking. No macOS machine is required. Symbol stripping is disabled automatically in this case (the macOS-only `dsymutil`/`strip` tools are unavailable on the host).
+Cross-compiling to `osx-arm64` from Windows/Linux is supported: the `MacOSX.SDK` package (referenced automatically) supplies a filtered macOS SDK subset, and Zig performs the linking. No macOS machine is required.
+
+#### Symbols and `.dSYM` (macOS targets)
+
+A cross-linked Mach-O contains **no DWARF** (the linker only records a debug map), so line info exists only in a `.dSYM`. The `MacOSX.SymbolTools.*` packages (referenced automatically) ship LLVM's `dsymutil` for every host, so `/p:StripSymbols=true` now works on a non-macOS host and produces the same result as a native macOS build:
+
+* `<app>.dSYM` next to the executable (managed code gets full file/line info);
+* `llvm-objcopy -x` on the app, i.e. Apple's `strip -x` (local symbols dropped, external symbols kept).
+
+`StripSymbols` stays `false` by default for macOS targets when cross-compiling. Runtime C++ frames keep symbol names only (the runtime `.a` members cannot be re-read from the debug map). macOS finds the bundle by UUID automatically; elsewhere use `target symbols add <app>.dSYM/Contents/Resources/DWARF/<app>`.
 
 #### XWin
 

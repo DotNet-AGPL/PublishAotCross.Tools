@@ -6,11 +6,14 @@ name: CI
 #
 # Important constraints
 #   * The XWin.Store.* / LLD.Link.Toolsets.* package contents are gitignored and
-#     produced by maintainers, so CI REBUILDS only the MacOSX.SDK package (from a
-#     downloaded SDK) and the main package; the others are restored from the feeds.
+#     produced by maintainers, so CI REBUILDS only the MacOSX.SDK and
+#     MacOSX.SymbolTools.* packages (from downloaded archives) plus the main
+#     package; the others are restored from the feeds.
 #   * The main PublishAotCross.Tools package is built by CI from source (packed
 #     into the local ./artifacts feed under a synthetic version), so no NuGet push
 #     is needed to validate changes.
+#   * The extracted dsymutil binaries (~290 MB) are cached, so the ~5 GB of LLVM
+#     archives are only downloaded when the cache key changes.
 #
 # Publishing
 #   This workflow does NOT publish packages. Packing and pushing (NuGet.org /
@@ -56,9 +59,53 @@ jobs:
           path: artifacts/MacOSX.SDK.*.nupkg
           if-no-files-found: error
 
+  # Build the MacOSX.SymbolTools.* packages (LLVM dsymutil per host) once and share
+  # them with the jobs that have to restore PublishAotCross.Tools.
+  symbols:
+    name: Build MacOSX.SymbolTools
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # The extracted binaries are ~290 MB, the LLVM archives behind them ~5 GB, so
+      # only run the extraction when the toolset versions change.
+      - name: Cache extracted dsymutil binaries
+        id: dsymutil-cache
+        uses: actions/cache@v4
+        with:
+          path: toolsets/MacOSX.SymbolTools/*/tools
+          key: dsymutil-${{ runner.os }}-${{ hashFiles('toolsets/ToolsetsVersion.props') }}
+
+      - name: Extract dsymutil for every host
+        if: steps.dsymutil-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: ./toolsets/download-macosx-symbols.ps1 -Platform all
+
+      - name: Pack MacOSX.SymbolTools packages
+        shell: pwsh
+        run: |
+          dotnet pack toolsets/MacOSX.SymbolTools/win-x64 -c Release -o artifacts --force
+          dotnet pack toolsets/MacOSX.SymbolTools/win-arm64 -c Release -o artifacts --force
+          dotnet pack toolsets/MacOSX.SymbolTools/linux-x64 -c Release -o artifacts --force
+          dotnet pack toolsets/MacOSX.SymbolTools/linux-arm64 -c Release -o artifacts --force
+          dotnet pack toolsets/MacOSX.SymbolTools -c Release -o artifacts --force
+
+      - name: Upload MacOSX.SymbolTools packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: macosx-symboltools-nupkg
+          path: artifacts/MacOSX.SymbolTools*.nupkg
+          if-no-files-found: error
+
   build:
     name: Cross-compile (${{ matrix.host.name }})
-    needs: sdk
+    needs: [sdk, symbols]
     runs-on: ${{ matrix.host.os }}
     strategy:
       fail-fast: false
@@ -98,6 +145,12 @@ jobs:
           name: macosx-sdk-nupkg
           path: artifacts
 
+      - name: Download MacOSX.SymbolTools into the local feed
+        uses: actions/download-artifact@v4
+        with:
+          name: macosx-symboltools-nupkg
+          path: artifacts
+
       - name: Pack PublishAotCross.Tools into the local feed
         shell: bash
         run: >
@@ -131,10 +184,11 @@ jobs:
           if-no-files-found: error
 
   # Cross-compile osx-arm64 from a Windows host. The macOS SDK subset is provided
-  # automatically by the MacOSX.SDK package (built by the "sdk" job; no NuGet push).
+  # automatically by the MacOSX.SDK package (built by the "sdk" job) and dsymutil by
+  # MacOSX.SymbolTools (built by the "symbols" job); no NuGet push is involved.
   cross_osx_arm64:
     name: Cross-compile osx-arm64 (Windows host)
-    needs: sdk
+    needs: [sdk, symbols]
     runs-on: windows-latest
     steps:
       - name: Checkout repo
@@ -158,6 +212,12 @@ jobs:
           name: macosx-sdk-nupkg
           path: artifacts
 
+      - name: Download MacOSX.SymbolTools into the local feed
+        uses: actions/download-artifact@v4
+        with:
+          name: macosx-symboltools-nupkg
+          path: artifacts
+
       - name: Pack PublishAotCross.Tools into the local feed
         shell: bash
         run: >
@@ -172,6 +232,19 @@ jobs:
           -c Release -f net10.0 -r osx-arm64 -o output/osx-arm64
           -p:PublishAotCrossVersion=${{ env.LOCAL_PKG_VERSION }}
 
+      # Exercises the MacOSX.SymbolTools path: StripSymbols=true must produce a .dSYM
+      # and strip local symbols instead of failing on the missing Xcode tools.
+      # The obj/bin wipe is required: ILC's incremental check ignores the -g argument,
+      # so it would otherwise reuse the object built without debug info above.
+      - name: Cross-compile osx-arm64 with dSYM
+        shell: bash
+        run: |
+          rm -rf test/TestPublish/bin test/TestPublish/obj
+          dotnet publish test/TestPublish/TestNupkg.csproj \
+            -c Release -f net10.0 -r osx-arm64 -o output/osx-arm64-stripped \
+            -p:PublishAotCrossVersion=${{ env.LOCAL_PKG_VERSION }} \
+            -p:DebugType=portable -p:StripSymbols=true
+
       - name: Verify Mach-O
         shell: pwsh
         run: |
@@ -180,11 +253,32 @@ jobs:
           Write-Host "magic=$magic"
           if ($magic -notmatch '^(cffaedfe|cafebabe)') { throw "Not a Mach-O file (magic=$magic)" }
 
+      - name: Verify dSYM and strip
+        shell: pwsh
+        run: |
+          $bin = "output/osx-arm64-stripped/TestNupkg"
+          $dwarf = "$bin.dSYM/Contents/Resources/DWARF/TestNupkg"
+          if (-not (Test-Path $dwarf)) { throw "dSYM is missing: $dwarf" }
+
+          $dwarfSize = (Get-Item $dwarf).Length
+          Write-Host "dSYM DWARF: $([math]::Round($dwarfSize/1KB,1)) KB"
+          if ($dwarfSize -lt 100KB) { throw "dSYM looks empty ($dwarfSize bytes) - dsymutil produced no debug info" }
+
+          $b = [IO.File]::ReadAllBytes($bin)[0..3]
+          $magic = ($b | ForEach-Object { $_.ToString('x2') }) -join ''
+          Write-Host "stripped binary magic=$magic"
+          if ($magic -notmatch '^(cffaedfe|cafebabe)') { throw "Stripped binary is not a Mach-O file (magic=$magic)" }
+
+          $stripped = (Get-Item $bin).Length
+          $plain = (Get-Item "output/osx-arm64/TestNupkg").Length
+          Write-Host "binary size: plain=$plain stripped=$stripped"
+          if ($stripped -ge $plain) { throw "binary was not stripped ($stripped >= $plain)" }
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: osx-arm64-cross
-          path: output/osx-arm64/TestNupkg
+          path: output/**
           if-no-files-found: error
 
   run_osx_arm64:
@@ -198,8 +292,15 @@ jobs:
           name: osx-arm64-cross
       - name: Run
         run: |
-          chmod +x TestNupkg
-          ./TestNupkg
+          chmod +x osx-arm64/TestNupkg
+          ./osx-arm64/TestNupkg
+      # The .dSYM build is stripped with llvm-objcopy -x: this proves the stripped
+      # binary still runs on real macOS.
+      - name: Run dSYM build
+        run: |
+          ls -la osx-arm64-stripped
+          chmod +x osx-arm64-stripped/TestNupkg
+          ./osx-arm64-stripped/TestNupkg
 
   validate:
     name: Run linux-x64 binary

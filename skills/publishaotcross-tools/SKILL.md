@@ -54,7 +54,8 @@ non-Windows targets. **`osx-x64` and 32-bit targets (`win-arm`, arm32) are not s
 | Property | Purpose |
 | --- | --- |
 | `/p:GlibcVersion=2.35` | Lower the glibc floor of the Linux output |
-| `/p:StripSymbols=false` | Keep symbols inside the executable |
+| `/p:StripSymbols=false` | Keep symbols inside the executable (also the default for `osx-*` when cross-compiling) |
+| `/p:StripSymbols=true` | Strip + `<binary>.dSYM` on macOS targets (a bundled LLVM `dsymutil` + `llvm-objcopy -x` replace Xcode's tools) |
 | `/p:AotPreferCustom=false` | Use the system native toolchain instead of the bundled one |
 | `/p:PublishAotCrossDebug=false` | Silence the "which toolchain was picked" build message (on by default) |
 
@@ -63,6 +64,9 @@ non-Windows targets. **`osx-x64` and 32-bit targets (`win-arm`, arm32) are not s
 - Do **not** set `StripSymbols=false` "to make it work". Stripping already works
   (a bundled multi-format `llvm-objcopy` is used); a `.dbg` file next to the
   executable on Linux is the expected, normal output.
+- Do **not** assume a cross-built macOS binary without `StripSymbols=true` is
+  debuggable: the linker never writes DWARF into Mach-O, so line info exists only
+  inside the `.dSYM`.
 - Do **not** install Visual Studio C++ tools or Xcode for cross builds. Xcode is
   only needed when building macOS **natively on macOS**.
 - Do **not** try `win-arm` (arm32) — Native AOT does not support it (`NETSDK1203`).
@@ -71,9 +75,19 @@ non-Windows targets. **`osx-x64` and 32-bit targets (`win-arm`, arm32) are not s
 
 - **Visual Studio publish**: set the publish profile's *Target Runtime* to the
   target RID. Left at the host RID, you silently get a host build.
-- The first restore pulls roughly 0.7 GB of toolchain packages (Windows SDK
-  store, lld-link, Zig, macOS SDK). That is expected.
+- The first restore pulls roughly 0.9 GB of toolchain packages (Windows SDK
+  store, lld-link, Zig, macOS SDK, `dsymutil`). That is expected.
 - `linux-musl-*` binaries are static; `linux-*` binaries need a glibc at least
   as new as the configured floor.
 - Outputs are unsigned. macOS runs cross-built binaries locally without extra
   signing; Windows may warn about unsigned executables.
+- **dSYM specifics** (macOS target with `StripSymbols=true`): managed code gets
+  full file/line info, but Native AOT *runtime* C++ frames only have symbol names
+  (`dsymutil` cannot re-read the runtime `.a` members, 92 expected warnings are
+  suppressed). `llvm-objcopy -x` equals Apple `strip -x`: local symbols go away,
+  so `image lookup -n <managed method>` stops working; addresses, source
+  breakpoints and backtraces still resolve. Line tables embed the build machine's
+  absolute paths — remap with `settings set target.source-map` when debugging
+  elsewhere, and treat `.dSYM` files as private artifacts. lldb outside macOS does
+  not auto-load the bundle, so add it explicitly:
+  `target symbols add <binary>.dSYM/Contents/Resources/DWARF/<binary>`.

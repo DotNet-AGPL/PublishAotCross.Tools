@@ -15,6 +15,7 @@ toolsets/                                 各平台"内容包"（作为 NuGet �
 ├── XWin.Store.x64 / .arm64               Windows SDK/CRT 导入库 store（内容 gitignored）
 ├── LLD.Link.Toolsets.{win,linux,osx}-*   lld-link 链接器（各宿主平台一份）
 ├── MacOSX.SDK                            过滤后的 macOS SDK 子集（osx 交叉用）
+├── MacOSX.SymbolTools/                   LLVM dsymutil（osx 交叉生成 .dSYM；父包 + 4 子包，tools/ gitignored）
 ├── LLVM-Source/                          维护者用的 LLVM 原始安装包（gitignored）
 └── download-*.ps1                        维护者脚本（重新生成上面各包的内容）
 
@@ -77,23 +78,24 @@ test/
 <XWinVersion>0.10.0</XWinVersion>
 <LLDVersion>23.1.3</LLDVersion>
 <MacOSXSDKVersion>26.1</MacOSXSDKVersion>
-<Revision>13</Revision>                                  <!-- 全包共享 -->
-<PublishAotCrossVersionPrefix>1.0.1</PublishAotCrossVersionPrefix>
+<Revision>14</Revision>                                  <!-- 全包共享 -->
+<PublishAotCrossVersionPrefix>1.0.3</PublishAotCrossVersionPrefix>
 <PublishAotCrossVersion>$(PublishAotCrossVersionPrefix).$(Revision)</PublishAotCrossVersion>
 ```
 
 | 包 | 版本公式 |
 | --- | --- |
-| `PublishAotCross.Tools` | `$(PublishAotCrossVersionPrefix).$(Revision)` → 如 `1.0.2.13` |
+| `PublishAotCross.Tools` | `$(PublishAotCrossVersionPrefix).$(Revision)` → 如 `1.0.3.14` |
 | `XWin.Store.*` | `$(XWinVersion).$(Revision)` |
 | `LLD.Link.Toolsets.*` | `$(LLDVersion).$(Revision)` |
 | `MacOSX.SDK` | `$(MacOSXSDKVersion).$(Revision)` |
+| `MacOSX.SymbolTools*` | `$(LLDVersion).$(Revision)`（与 LLVM 版本对齐，父包 + 4 子包共 5 个） |
 
 要点：
-- **`Revision` 全包共享**：主包依赖的就是 `…$(Revision)`。改动 `Revision` ⇒ **9 个包都要重发**（toolsets 通常只是"换版本号"）。
+- **`Revision` 全包共享**：主包依赖的就是 `…$(Revision)`。改动 `Revision` ⇒ **13 个包都要重发**（toolsets 通常只是"换版本号"）。
 - **主包 = 前段 + Revision**：前段（`PublishAotCrossVersionPrefix`）可单独调整。
-- **发布顺序：先 8 个 toolset/store/SDK，再主包**。否则用户还原与 CI 都会 `NU1102`（找不到 `.Revision` 版本）。
-- 线上历史：`0.6.0.5 … 0.6.0.12` → `1.0.1.13` → `1.0.2.13`（后者仅主包变化：只升"前段"，toolset 仍 `.13`）。
+- **发布顺序：先 12 个 toolset/store/SDK/SymbolTools，再主包**。否则用户还原与 CI 都会 `NU1102`（找不到 `.Revision` 版本）。
+- 线上历史：`0.6.0.5 … 0.6.0.12` → `1.0.1.13` → `1.0.2.13`（仅主包变化：只升"前段"，toolset 仍 `.13`）→ `1.0.3.14`（新增 `MacOSX.SymbolTools*`）。
 
 ---
 
@@ -101,8 +103,13 @@ test/
 
 - `MacOSX.SDK` 包（过滤后的 SDK 子集，约 14.7MB）自动 `PackageReference` ；其 `buildTransitive/MacOSX.SDK.props` 给出 `MacOSXSDKDir`。
 - 无需 Mac：Zig 链接 + 注入的 SDK 搜索路径即可产出 Mach-O。
-- **`StripSymbols` 例外**：`RuntimeIdentifier.StartsWith('osx') && !HostRuntimeIdentifier.StartsWith('osx')` ⇒ 默认 `false`
-  （ILCompiler 对 Apple 目标会调用 macOS 专属的 `dsymutil`/`strip`，宿主没有）。
+- **`StripSymbols` 语义**：`RuntimeIdentifier.StartsWith('osx') && !HostRuntimeIdentifier.StartsWith('osx')`
+  ⇒ 默认 `false`（不剥离、不生成 .dSYM）；显式设 `true` 时**不再报错**，改由本包用
+  `MacOSX.SymbolTools` 的 LLVM `dsymutil` + `llvm-objcopy -x` 复刻 macOS 原生
+  `dsymutil && strip -no_code_signature_warning -x`（详见第 5 节）。
+- **Mach-O 里没有 DWARF**：链接器（ld64 / zig 内置的 ld64.lld）只写 **N_OSO debug map**，
+  不写 `__DWARF` 段。实测：未剥离的 Mach-O（即使 `-g` 链接）用 `llvm-dwarfdump` 查 CU = 0
+  ⇒ **没有 `.dSYM` 就完全没有文件名/行号**（"不剥离"并不等于"可调试"）。
 - 已知**无害**告警：`unable to open library directory "/usr/lib/swift"`、以及 SDK 内 `PrivateFrameworks` 目录不存在（过滤子集未含）。由 `-L`/`-F` 实际路径兜住。
 
 ---
@@ -130,16 +137,74 @@ test/
   `zstd -dc --long=30 <file> | tar -xf - --wildcards '*/bin/llvm-objcopy'`。
 - LLVM 官方包很大（1.5–1.9GB/平台）；本机走代理被限速（~0.3MB/s），所以用 CI 下载。
 
+### 5.1 macOS 交叉的 dSYM（MacOSX.SymbolTools）★
+
+**为什么必须单独打包 `dsymutil`**
+- Xcode 的 `dsymutil`/`strip` 不可再分发；LLVM 上游的 `dsymutil` 是唯一替代（Apache-2.0 WITH LLVM-exception）。
+- 它静态链了 LLVM，体积大：win 52.2MB/宿主；linux 未 strip 136MB（我们 strip 到 94.6MB，WSL 实测仍可运行）。
+
+**包结构**（`toolsets/MacOSX.SymbolTools/`）
+- 父包 `MacOSX.SymbolTools`（metapackage）→ 依赖 4 个子包
+- 子包 `MacOSX.SymbolTools.<rid>`（win-x64 / win-arm64 / linux-x64 / linux-arm64），各自 `tools/dsymutil[.exe]` + `buildTransitive/*.props`
+- 4 个子包**分别**设置 `MacOSXSymbolTools<Host>Dir`（不能共用同一个属性，否则导入顺序决定胜者 → 取错宿主）；主 targets 按 `HostRuntimeIdentifier` 选。
+- 二进制不入库（gitignored），由 `toolsets/download-macosx-symbols.ps1` 生成；nuproj 缺文件直接 `Error` 提示。
+  - 该脚本对 `.tar.xz` 依次尝试：原生 bsdtar → PATH 上的 `xz`（Git for Windows/MSYS2）→ WSL → 完整 7-Zip（`7zr` 不支持 xz）。
+
+**主包侧**（`src/build/Crosscompile.targets`）
+- 属性：`_PublishAotCrossMacOSStrip`（`osx` 目标 + 非 macOS 宿主 + `StripSymbols=true`）。
+- **必须先"关掉 ILC 的 Apple 分支"**：ILC 的 `Microsoft.NETCore.Native.targets:413` 只要 `StripSymbols=true` 就会跑
+  `dsymutil … && strip -no_code_signature_warning -x …`。而 `dotnet publish -p:StripSymbols=true` 是**全局属性**，
+  评估期赋值**无法覆盖**（`src/build/Crosscompile.targets` 里那句 `<StripSymbols Condition=…>false</StripSymbols>` 只对 csproj 内设置有效）。
+  因此用目标 `PublishAotCrossMacOSStripGuard`（`BeforeTargets="SetupOSSpecificProps"`）在**执行期**赋 `StripSymbols=false`
+  —— 目标执行期的赋值可以覆盖全局属性（已实测）。
+  不要用"改 PATH 放 no-op shim"的办法：MSBuild 多节点/服务器下进程环境变量不可靠（已踩）。
+- 目标 `PublishAotCrossMacOSStrip`（`AfterTargets="LinkNative"`）：
+  1. `dsymutil --quiet <bin>` ⇒ `<bin>.dSYM`（与二进制同目录、同 UUID）
+  2. `llvm-objcopy -x <bin>` ⇒ 等价 Apple `strip -x`（2.05MB→1.09MB，外部符号 95 个全保留）
+  3. `<bin>.stripped` 标记文件（`Inputs`/`Outputs`）保证增量构建不重复剥离——否则第二次会对已剥离的二进制跑
+     dsymutil，把真实 dSYM 覆盖成 24KB 的空壳。
+- **顺序不可反**：`-x` 会删掉 dsymutil 需要的 debug map。
+- 两个 `Exec` 需 `IgnoreStandardErrorWarningFormat="true"`：dsymutil 固定输出 92 条
+  `unable to open object file: invalid argument`（91 个 `libRuntime.WorkstationGC.a(member)` + `libbootstrapper.o`），
+  `--quiet` 压不掉；不忽略会被当成 MSBuild warning（`TreatWarningsAsErrors` 会炸）。
+- 想压掉这 92 行噪音用 `StandardErrorImportance="Low"`（注意：MSBuild `Exec` 会**丢弃命令行里的 `2>file` 重定向**，实测无效）。
+
+**实测结论（WSL lldb 19 加载 Mach-O）**
+- dSYM 有效：`image lookup -a 0x100002ed0` → `Interop.IOErrors.cs:16`；`Program.cs:3` 命中；
+  `breakpoint set --file Program.cs --line 3` 可解析。
+- 托管代码完整（hello-world：3,782 subprogram / 19,427 行号表行）；runtime C++ 只有符号名（上述 92 条 warning）。
+- 剥离后：`image lookup -n <托管方法>` 失效（名字查找走 symtab），地址/源码断点/回溯正常。
+- 行号表内是构建机绝对路径（`E:\…`）⇒ macOS 上通常要 `target.source-map`；`.dSYM` 不宜公开分发。
+- 非 macOS 的 lldb 不自动加载 dSYM：`target symbols add <bin>.dSYM/Contents/Resources/DWARF/<bin>`
+  （传 `.dSYM` 目录会报 `invalid module path`）。
+
+**打包/验证（1.0.3.14 + SymbolTools 23.1.3.14 实测）**
+- 4 个子包：win-x64 19.3MB、win-arm64 18.2MB、linux-x64 30.5MB、linux-arm64 29.4MB（共 ≈97MB）；父包 4KB（仅依赖）。
+- 主包依赖 4 个子包（nuspec 已核对），`StripSymbols=true` 端到端：exit=0、`<bin>.dSYM` 1.5MB、二进制 1.04MB、**0 条 warning**，
+  lldb 解析出 `Program.cs:3`。
+- ⚠️ **重打同版本号后必须 `dotnet build-server shutdown` + 清 `.nuget/packages/publishaotcross.tools/<ver>`**，
+  否则 MSBuild 服务器会复用旧评估：现象是"新加的 target 报 MSB4057 不存在 / 改动像没生效"（本项目已踩）。
+- ⚠️ 切换 `DebugType` 后建议先 `-t:Rebuild` 或清 `obj/bin`：ILC 的增量判定不含 `-g` 参数，可能复用没有 DWARF 的 `.o`，
+  导致生成的 dSYM 只有 24KB 空壳。
+
 ---
 
 ## 6. CI
 
 `.github/workflows/main.yml`（触发：`pull_request` + `workflow_dispatch`）
 - `sdk`：下载并过滤 macOS SDK → 打 `MacOSX.SDK` 包 → 上传 artifact。
-- `build`（矩阵 Windows/Linux/macOS）：把 `MacOSX.SDK` 放入本地 `artifacts` feed，**本地打主包**（合成版本 `0.0.0-ci`），再交叉编译 `TestNupkg`。
-- `cross_osx_arm64`（Windows 宿主）+ `run_osx_arm64`（macOS runner 运行）+ `validate`（跑 linux-x64）。
+- `symbols`：抽出 4 个宿主的 `dsymutil`（`tools/*/tools` 走 actions/cache，命中就跳过 ~5GB 的 LLVM 归档下载）→
+  打 `MacOSX.SymbolTools` 父包 + 4 子包 → 上传 artifact。
+- `build`（矩阵 Windows/Linux/macOS）：把 `MacOSX.SDK` + `MacOSX.SymbolTools*` 放入本地 `artifacts` feed，
+  **本地打主包**（合成版本 `0.0.0-ci`），再交叉编译 `TestNupkg`。
+- `cross_osx_arm64`（Windows 宿主）：默认产物 + **额外跑一次 `-p:DebugType=portable -p:StripSymbols=true`**，
+  断言 `<bin>.dSYM` 存在且 ≥100KB、Mach-O magic 合法、二进制确实变小；两次发布之间会清 `bin/obj`
+  （ILC 增量判定不含 `-g`，不清会复用无 DWARF 的 `.o`）。
+- `run_osx_arm64`（macOS runner）：分别运行普通产物与**剥离后**的产物 ⇒ 证明 `llvm-objcopy -x` 后仍可执行。
+- `validate`：跑 linux-x64。
 - CI **不推送** NuGet；`XWin.Store.*` / `LLD.*` 内容 gitignored，CI 只能从 feed **还原**它们。
   ⇒ **改 `Revision` 后必须先发布这些包，CI 才能跑通。**
+  `MacOSX.SDK` / `MacOSX.SymbolTools*` 例外：它们由 CI 自己从源码/归档构建。
 
 `.github/workflows/fetch-objcopy.yml`：手动工具，获取/更新内置 `llvm-objcopy`。
 

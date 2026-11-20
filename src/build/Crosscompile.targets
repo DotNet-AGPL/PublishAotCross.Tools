@@ -18,6 +18,27 @@
          Default symbol stripping off in that case (users can override). -->
     <_IsCrossCompilingToMacOS Condition="$(RuntimeIdentifier.StartsWith('osx')) and !$(HostRuntimeIdentifier.StartsWith('osx'))">true</_IsCrossCompilingToMacOS>
     <StripSymbols Condition="'$(StripSymbols)' == '' and '$(_IsCrossCompilingToMacOS)' == 'true'">false</StripSymbols>
+
+    <!-- ILCompiler's Apple branch runs `dsymutil <bin> && strip -no_code_signature_warning -x <bin>`,
+         which needs the Xcode tools a Windows/Linux host does not have. Keep that branch off
+         and reproduce it with the LLVM tools from the MacOSX.SymbolTools packages (target
+         PublishAotCrossMacOSStrip below): the outcome is the .dSYM + local-symbol strip that a
+         macOS build produces. -->
+    <_PublishAotCrossMacOSStrip Condition="'$(_IsCrossCompilingToMacOS)' == 'true' and '$(StripSymbols)' == 'true'">true</_PublishAotCrossMacOSStrip>
+    <StripSymbols Condition="'$(_PublishAotCrossMacOSStrip)' == 'true'">false</StripSymbols>
+
+    <!-- Host-side dsymutil / llvm-objcopy, injected by the MacOSX.SymbolTools.<rid> packages. -->
+    <_MacOSXSymbolToolsDir Condition="'$(HostRuntimeIdentifier)' == 'win-x64'">$(MacOSXSymbolToolsWinX64Dir)</_MacOSXSymbolToolsDir>
+    <_MacOSXSymbolToolsDir Condition="'$(HostRuntimeIdentifier)' == 'win-arm64'">$(MacOSXSymbolToolsWinArm64Dir)</_MacOSXSymbolToolsDir>
+    <_MacOSXSymbolToolsDir Condition="'$(HostRuntimeIdentifier)' == 'linux-x64'">$(MacOSXSymbolToolsLinuxX64Dir)</_MacOSXSymbolToolsDir>
+    <_MacOSXSymbolToolsDir Condition="'$(HostRuntimeIdentifier)' == 'linux-arm64'">$(MacOSXSymbolToolsLinuxArm64Dir)</_MacOSXSymbolToolsDir>
+    <_MacOSXHostExeSuffix Condition="$(HostRuntimeIdentifier.StartsWith('win'))">.exe</_MacOSXHostExeSuffix>
+    <_MacOSXDsymutil Condition="'$(_MacOSXSymbolToolsDir)' != ''">$(_MacOSXSymbolToolsDir)dsymutil$(_MacOSXHostExeSuffix)</_MacOSXDsymutil>
+    <!-- win-arm64 hosts reuse the win-x64 llvm-objcopy (runs under emulation); that is the
+         same mapping SetPath.cs uses when prepending the strip tool to PATH. -->
+    <_MacOSXObjcopyHost Condition="'$(HostRuntimeIdentifier)' == 'win-arm64'">win-x64</_MacOSXObjcopyHost>
+    <_MacOSXObjcopyHost Condition="'$(_MacOSXObjcopyHost)' == ''">$(HostRuntimeIdentifier)</_MacOSXObjcopyHost>
+    <_MacOSXObjcopy Condition="'$(_MacOSXDsymutil)' != ''">$(MSBuildThisFileDirectory)llvm-objcopy/$(_MacOSXObjcopyHost)/llvm-objcopy$(_MacOSXHostExeSuffix)</_MacOSXObjcopy>
   </PropertyGroup>
 
   <UsingTask TaskName="PrependPathIfCrossCompile"
@@ -198,5 +219,66 @@
 
   </Target>
   <!-- END: Works around ILCompiler targets not detecting this as a cross compilation -->
+
+  <!-- ILCompiler's Apple branch (`dsymutil … && strip -no_code_signature_warning -x …`) runs
+       whenever StripSymbols=true, but those tools only exist in Xcode. StripSymbols cannot be
+       overridden at evaluation time when it comes in as a global property
+       (`/p:StripSymbols=true`), so flip it from a target instead: property assignments made
+       while a target runs do override global properties. -->
+  <Target Name="PublishAotCrossMacOSStripGuard"
+          BeforeTargets="SetupOSSpecificProps">
+
+    <!-- Condition lives inside the target on purpose: as an attribute it evaluated to false
+         in the RID-specific build even though the properties were set. -->
+    <PropertyGroup Condition="'$(_IsCrossCompilingToMacOS)' == 'true' and '$(StripSymbols)' == 'true'">
+      <StripSymbols>false</StripSymbols>
+      <_PublishAotCrossMacOSStrip>true</_PublishAotCrossMacOSStrip>
+    </PropertyGroup>
+
+    <Message Condition="'$(_PublishAotCrossMacOSStrip)' == 'true' and '$(PublishAotCrossDebug)' == 'true'" Importance="normal"
+             Text="PublishAotCross: disabling ILCompiler's Xcode dsymutil/strip step; the .dSYM is produced by PublishAotCrossMacOSStrip with the bundled LLVM tools." />
+  </Target>
+
+  <!-- Non-macOS host -> macOS target: reproduce ILCompiler's Apple post-link step
+       (`dsymutil <bin> && strip -no_code_signature_warning -x <bin>`) with the LLVM
+       tools shipped in MacOSX.SymbolTools.<host-rid>.
+       dsymutil must run first: `-x` drops the debug map it rebuilds the .dSYM from. -->
+  <Target Name="PublishAotCrossMacOSStrip"
+          AfterTargets="LinkNative"
+          Condition="'$(_PublishAotCrossMacOSStrip)' == 'true' and '$(NativeLib)' != 'Static'"
+          Inputs="$(NativeBinary)"
+          Outputs="$(NativeBinary).stripped">
+
+    <Error Condition="'$(_MacOSXDsymutil)' == ''"
+           Text="StripSymbols=true for a cross-compiled macOS target ($(RuntimeIdentifier) on $(HostRuntimeIdentifier)) needs the 'MacOSX.SymbolTools.$(HostRuntimeIdentifier)' package, which PublishAotCross.Tools depends on. Restore the project again, or set StripSymbols=false to skip symbol stripping." />
+    <Error Condition="'$(_MacOSXDsymutil)' != '' and !Exists('$(_MacOSXDsymutil)')"
+           Text="dsymutil was expected at '$(_MacOSXDsymutil)' (from MacOSX.SymbolTools.$(HostRuntimeIdentifier)) but the file does not exist. Re-restore the project, or set StripSymbols=false." />
+    <Error Condition="'$(_MacOSXDsymutil)' != '' and !Exists('$(_MacOSXObjcopy)')"
+           Text="llvm-objcopy was expected at '$(_MacOSXObjcopy)' but the file does not exist. Reinstall PublishAotCross.Tools, or set StripSymbols=false." />
+    <Error Condition="'$(_MacOSXDsymutil)' != '' and !Exists('$(NativeBinary)')"
+           Text="Native binary '$(NativeBinary)' does not exist, so no .dSYM can be generated." />
+
+    <!-- The runtime's C++ objects cannot be re-read out of the debug map (linker path
+         format), which is expected: managed code still gets full line info. That is ~92
+         stderr lines, so they are logged at low importance and never promoted to warnings.
+         Run with -v:normal to see them. -->
+    <Exec Command="&quot;$(_MacOSXDsymutil)&quot; --quiet &quot;$(NativeBinary)&quot;"
+          IgnoreStandardErrorWarningFormat="true"
+          StandardOutputImportance="Low"
+          StandardErrorImportance="Low" />
+    <Error Condition="!Exists('$(NativeBinary).dSYM')"
+           Text="dsymutil did not produce '$(NativeBinary).dSYM'. Re-run with -v:normal to see its output." />
+
+    <Exec Command="&quot;$(_MacOSXObjcopy)&quot; -x &quot;$(NativeBinary)&quot;"
+          IgnoreStandardErrorWarningFormat="true" />
+
+    <Message Importance="high"
+             Text="PublishAotCross: wrote $(NativeBinary).dSYM and stripped local symbols from $(NativeBinary)." />
+
+    <!-- Incremental marker: keeps a second build from re-running dsymutil on the already
+         stripped binary (which would overwrite the real .dSYM with an empty one). It lives
+         next to the binary so it disappears together with it. -->
+    <Touch Files="$(NativeBinary).stripped" AlwaysCreate="true" />
+  </Target>
 
 </Project>

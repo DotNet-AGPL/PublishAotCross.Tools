@@ -1,0 +1,5 @@
+The code in this package is licensed under the Apache License, Version 2.0.
+
+The bundled `dsymutil` binaries are from the LLVM project and are licensed under
+the Apache License, Version 2.0 with LLVM Exceptions.
+See https://llvm.org/foundation/relicensing/ for details.

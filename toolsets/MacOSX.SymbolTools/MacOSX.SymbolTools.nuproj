@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.Build.NoTargets">
+  <Import Project="../ToolsetsVersion.props" />
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <PackageId>MacOSX.SymbolTools</PackageId>
+    <Version>$(LLDVersion).$(Revision)</Version>
+    <Authors>LLVM Project;DotNet-AGPL</Authors>
+    <Company>DotNet-AGPL</Company>
+    <Description>Meta package: LLVM dsymutil for every supported host (win-x64, win-arm64, linux-x64, linux-arm64). Generates the .dSYM bundle when cross-compiling Native AOT to macOS from a non-macOS host.</Description>
+    <PackageProjectUrl>https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/MacOSX.SymbolTools</PackageProjectUrl>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MacOSX.SymbolTools.win-x64" Version="$(LLDVersion).$(Revision)" />
+    <PackageReference Include="MacOSX.SymbolTools.win-arm64" Version="$(LLDVersion).$(Revision)" />
+    <PackageReference Include="MacOSX.SymbolTools.linux-x64" Version="$(LLDVersion).$(Revision)" />
+    <PackageReference Include="MacOSX.SymbolTools.linux-arm64" Version="$(LLDVersion).$(Revision)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="LICENSE" Pack="true" PackagePath="/" />
+    <None Include="../../NOTICE" Pack="true" PackagePath="/" />
+    <None Include="../../skills/publishaotcross-tools/**" Pack="true" PackagePath="skills/publishaotcross-tools/" />
+  </ItemGroup>
+</Project>
