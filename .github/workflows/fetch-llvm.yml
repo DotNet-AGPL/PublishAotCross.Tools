@@ -1,0 +1,70 @@
+name: Fetch LLVM toolsets
+
+# ---------------------------------------------------------------------------
+# Maintainer helper: download a given LLVM release on a GitHub runner (fast
+# network) and hand back the binaries that the toolset packages need, so a slow
+# or filtered local connection never has to fetch the ~5 GB of archives.
+#
+#   artifact lld-link-toolsets : tools/lld-link.zip for every host
+#   artifact dsymutil-toolsets : tools/dsymutil[.exe] for every host
+#
+# Unpack them over the repo, then bump ToolsetsVersion.props and pack.
+# This workflow does NOT publish anything.
+# ---------------------------------------------------------------------------
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'LLVM release version (e.g. 23.1.6)'
+        required: true
+        default: '23.1.6'
+
+env:
+  LLVM_VERSION: ${{ inputs.version }}
+
+jobs:
+  fetch:
+    name: Fetch LLVM ${{ inputs.version }} toolsets
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Fetch lld-link for every host
+        shell: pwsh
+        run: ./toolsets/download-lld-link.ps1 -Version $env:LLVM_VERSION -Platform all
+
+      - name: Fetch dsymutil for every host
+        shell: pwsh
+        run: ./toolsets/download-macosx-symbols.ps1 -Version $env:LLVM_VERSION -Platform all
+
+      - name: Upload lld-link zips
+        uses: actions/upload-artifact@v4
+        with:
+          name: lld-link-toolsets
+          path: toolsets/LLD.Link.Toolsets.*/tools/lld-link.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload dsymutil binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsymutil-toolsets
+          path: toolsets/MacOSX.Symbols.Toolsets/*/tools/dsymutil*
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Summary
+        shell: pwsh
+        run: |
+          Write-Host "LLVM $env:LLVM_VERSION fetched."
+          Get-ChildItem toolsets/LLD.Link.Toolsets.*/tools/lld-link.zip |
+            ForEach-Object { "  {0}  {1} MB" -f $_.FullName.Substring($PWD.Path.Length + 1), [math]::Round($_.Length/1MB,1) }
+          Get-ChildItem toolsets/MacOSX.Symbols.Toolsets/*/tools/dsymutil* |
+            ForEach-Object { "  {0}  {1} MB" -f $_.FullName.Substring($PWD.Path.Length + 1), [math]::Round($_.Length/1MB,1) }
