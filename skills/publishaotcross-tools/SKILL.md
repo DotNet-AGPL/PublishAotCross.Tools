@@ -81,6 +81,15 @@ non-Windows targets. **`osx-x64` and 32-bit targets (`win-arm`, arm32) are not s
   as new as the configured floor.
 - Outputs are unsigned. macOS runs cross-built binaries locally without extra
   signing; Windows may warn about unsigned executables.
+- **`StripSymbols` per target** — `win-*`: no-op (PE has no symbol table, ILC skips
+  Windows); `linux-*`: stripped via the bundled `llvm-objcopy`, plus `App.dbg` +
+  gnu-debuglink when `DebugType != none`; `osx-*` cross: `.dSYM` + `strip -x`
+  equivalent; `osx-*` on macOS: Xcode `dsymutil`/`strip` (ILC's native branch).
+  Measured on hello-world with `DebugType=portable`: linux 6,283 KB → 1,168 KB +
+  4,996 KB `.dbg`; osx cross 1,999 KB → 1,069 KB + 1,537 KB dSYM; win-x64 unchanged.
+- **Toggling `StripSymbols` needs a clean build**: when the linked binary is
+  up to date, `LinkNative` is skipped and the strip/.dSYM step does not re-run
+  (same behaviour as upstream ILC). `rm -rf bin obj` or `-t:Rebuild`.
 - **dSYM specifics** (macOS target with `StripSymbols=true`): managed code gets
   full file/line info, but Native AOT *runtime* C++ frames only have symbol names
   (`dsymutil` cannot re-read the runtime `.a` members, 92 expected warnings are
