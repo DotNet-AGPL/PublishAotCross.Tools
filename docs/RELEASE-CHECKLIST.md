@@ -1,29 +1,29 @@
 # 发布校验清单（nuget.org）
 
-> 目标：一次发布 = 8 个新包（3 父包 / 4 个 `MacOSX.Symbols.Toolsets.*` 子包 / 主包）。
-> 其余 8 个包（`XWin.Store.x64|arm64`、`LLD.Link.Toolsets.*` ×5、`MacOSX.SDK`）在 `.14` 已上线，**不重发**。
+> 目标：一次 `Revision` 变更 = **16 个包全量重发**（11 个平台子包 + 3 个父包 + macOS SDK + 主包）。
+> 若只有主包变化，脚本里的列表可以裁剪（见文件顶部注释）。
 
 ## 0. 前置条件（缺一不可）
 
-- [ ] `main` 上最后一次 CI **全绿**（8~9 个 job 全 success）
+- [ ] `main` 上最后一次 CI **全绿**
 - [ ] 工作区干净、与远端一致（`git status`、`git log --oneline -1`）
-- [ ] `toolsets/ToolsetsVersion.props` 的 `Revision` / `PublishAotCrossVersionPrefix` 就是本次要发的版本
-- [ ] `artifacts/` 里的 8 个包是**最近一次构建**的产物（不是上轮残留）
+- [ ] `toolsets/ToolsetsVersion.props` 的 `Revision` / 各版本号就是本次要发的版本
+- [ ] `artifacts/` 里的包是**最近一次构建**的产物（不是上轮残留）
 
-## 1. 版本与包清单
+## 1. 版本与包清单（按推送顺序）
 
-| # | 包 ID | 版本 | 大小 | 说明 |
-|---|---|---|---|---|
-| 1 | `MacOSX.Symbols.Toolsets.win-x64` | `23.1.3.14` | ~19 MB | 子包 |
-| 2 | `MacOSX.Symbols.Toolsets.win-arm64` | `23.1.3.14` | ~18 MB | 子包 |
-| 3 | `MacOSX.Symbols.Toolsets.linux-x64` | `23.1.3.14` | ~30 MB | 子包 |
-| 4 | `MacOSX.Symbols.Toolsets.linux-arm64` | `23.1.3.14` | ~29 MB | 子包 |
-| 5 | `MacOSX.Symbols.Toolsets` | `23.1.3.14` | 4 KB | 父包（metapackage） |
-| 6 | `LLD.Link.Toolsets` | `23.1.3.14` | 4 KB | 父包 |
-| 7 | `XWin.Store` | `0.10.0.14` | 4 KB | 父包 |
-| 8 | `PublishAotCross.Tools` | `1.0.3.14` | ~10 MB | 主包 |
+| # | 包 ID | 版本公式 | 大小 |
+|---|---|---|---|
+| 1–5 | `LLD.Link.Toolsets.{win-x64,win-arm64,linux-x64,linux-arm64,osx-arm64}` | `$(LLDVersion).$(Revision)` | 27–59 MB |
+| 6–9 | `MacOSX.Symbols.Toolsets.{win-x64,win-arm64,linux-x64,linux-arm64}` | `$(LLDVersion).$(Revision)` | 18–31 MB |
+| 10–11 | `XWin.Store.{x64,arm64}` | `$(XWinVersion).$(Revision)` | 100 / 152 MB |
+| 12 | `LLD.Link.Toolsets`（父包） | `$(LLDVersion).$(Revision)` | 4 KB |
+| 13 | `MacOSX.Symbols.Toolsets`（父包） | `$(LLDVersion).$(Revision)` | 4 KB |
+| 14 | `XWin.Store`（父包） | `$(XWinVersion).$(Revision)` | 4 KB |
+| 15 | `MacOSX.SDK` | `$(MacOSXSDKVersion).$(Revision)` | 15 MB |
+| 16 | `PublishAotCross.Tools` | `$(PublishAotCrossVersionPrefix).$(Revision)` | 10 MB |
 
-**推送顺序**：1–4（子包）→ 5–7（父包）→ 8（主包）。脚本已内置该顺序。
+**推送顺序**：子包（1–11）→ 父包（12–14）→ SDK（15）→ 主包（16）。脚本已内置。
 
 ## 2. 自动校验（不推送）
 
@@ -33,7 +33,7 @@ pwsh toolsets/publish-release.ps1 -Check
 
 会做三件事，任一失败即 `exit 1`：
 
-1. **内容**：8 个文件齐全；nuspec 的 `id`/`version` 与预期一致；打印大小 + SHA256（发布记录用）。
+1. **内容**：全部包文件齐全；nuspec 的 `id`/`version` 与预期一致；打印大小 + SHA256（发布记录用）。
 2. **依赖闭包**：每个依赖要么在本批（前面已推），要么已在 nuget.org；缺任何一个都会报红。
 3. **远端状态**：每个包是 `new` 还是 `already published`（后者默认跳过）。
 
@@ -61,7 +61,7 @@ pwsh toolsets/publish-release.ps1 -Push -ApiKey <key>
 ```bash
 mkdir /tmp/pact-smoke && cd /tmp/pact-smoke
 dotnet new console -f net10.0
-dotnet add package PublishAotCross.Tools --version 1.0.3.14
+dotnet add package PublishAotCross.Tools --version 1.0.3.15
 # csproj 里补：<PublishAot>true</PublishAot>  <RuntimeIdentifiers>osx-arm64</RuntimeIdentifiers>
 dotnet publish -r osx-arm64 -c Release
 ```

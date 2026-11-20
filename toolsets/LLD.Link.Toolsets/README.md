@@ -10,7 +10,7 @@
 | `LLD.Link.Toolsets.linux-arm64` | linux-arm64 | ~57 MB |
 | `LLD.Link.Toolsets.osx-arm64` | osx-arm64 | ~45 MB |
 
-**LLVM version:** 23.1.3
+**LLVM version:** 23.1.5
 
 **Source:** https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/LLD.Link.Toolsets
 

@@ -1,0 +1,58 @@
+<Project>
+
+  <!-- The lld-link binaries are committed as <=30 MB parts (`lld-link.zip.part01`,
+       ...) because GitHub's REST blob API rejects larger payloads, and this repo is
+       maintained from a host where `git push` over HTTPS is unavailable. The parts
+       are concatenated back into `tools/lld-link.zip` at build time; the merged file
+       is gitignored. -->
+
+  <UsingTask TaskName="MergeLldLinkParts"
+             TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Parts ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <OutputFile ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Code Type="Fragment" Language="cs">
+        <![CDATA[
+        var dir = Path.GetDirectoryName(OutputFile);
+        if (!string.IsNullOrEmpty(dir)) { Directory.CreateDirectory(dir); }
+
+        using (var output = File.Create(OutputFile))
+        {
+            foreach (var part in Parts)
+            {
+                using (var input = File.OpenRead(part.ItemSpec))
+                {
+                    input.CopyTo(output);
+                }
+            }
+        }
+
+        Log.LogMessage(MessageImportance.High,
+            "Merged " + Parts.Length + " lld-link part(s) into " + OutputFile);
+        ]]>
+      </Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="EnsureLldLinkZipMerged" BeforeTargets="Build">
+    <ItemGroup>
+      <_LldLinkPart Include="$(MSBuildProjectDirectory)/tools/lld-link.zip.part*" />
+    </ItemGroup>
+
+    <PropertyGroup>
+      <_LldLinkZip>$(MSBuildProjectDirectory)/tools/lld-link.zip</_LldLinkZip>
+    </PropertyGroup>
+
+    <Error Condition="'@(_LldLinkPart)' == '' and !Exists('$(_LldLinkZip)')"
+           Text="No lld-link parts found in '$(MSBuildProjectDirectory)/tools'. Run 'toolsets/download-lld-link.ps1 -Platform &lt;rid&gt;' first." />
+
+    <MergeLldLinkParts Condition="'@(_LldLinkPart)' != '' and !Exists('$(_LldLinkZip)')"
+                       Parts="@(_LldLinkPart)"
+                       OutputFile="$(_LldLinkZip)" />
+  </Target>
+
+</Project>

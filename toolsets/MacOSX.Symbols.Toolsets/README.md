@@ -13,7 +13,7 @@ units in the executable).
 Apple's `dsymutil` lives in Xcode and cannot be redistributed, so these packages bundle
 the LLVM upstream build for every supported host.
 
-**LLVM version:** 23.1.3
+**LLVM version:** 23.1.5
 
 **Source:** https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/MacOSX.Symbols.Toolsets
 
@@ -58,7 +58,7 @@ Nothing is added to `PATH`, so the system `strip` is never shadowed.
 is needed. Only when you use this package standalone:
 
 ```xml
-<PackageReference Include="MacOSX.Symbols.Toolsets.win-x64" Version="23.1.3.*" PrivateAssets="all" />
+<PackageReference Include="MacOSX.Symbols.Toolsets.win-x64" Version="23.1.5.*" PrivateAssets="all" />
 ```
 
 ## Known limitations
@@ -86,5 +86,5 @@ https://llvm.org/foundation/relicensing/ for details.
 ## Origin
 
 Produced by `toolsets/download-macosx-symbols.ps1`, which extracts `bin/dsymutil` from
-the official LLVM 23.1.3 release archives and strips the Linux builds with the bundled
+the official LLVM 23.1.5 release archives and strips the Linux builds with the bundled
 `llvm-objcopy`.

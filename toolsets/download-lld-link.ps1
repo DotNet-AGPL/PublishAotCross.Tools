@@ -1,7 +1,10 @@
 param(
   [string]$Version = "23.1.3",
   [ValidateSet("all", "win-x64", "win-arm64", "linux-x64", "linux-arm64", "osx-arm64")]
-  [string]$Platform = "all"
+  [string]$Platform = "all",
+  # The zips are committed as parts of at most this size: GitHub's REST blob API
+  # rejects larger payloads and this repo is maintained over that API.
+  [int]$PartSizeMB = 25
 )
 
 $ErrorActionPreference = "Stop"
@@ -112,14 +115,32 @@ foreach ($key in $keys) {
   Copy-Item $extracted $binPath -Force
   Remove-Item -Recurse -Force $extractDir -ErrorAction SilentlyContinue
 
-  # Repackage as tools/lld-link.zip (the package extracts it at build time).
+  # Repackage as tools/lld-link.zip.partNN (the package merges the parts and
+  # extracts the zip at build time, see LLD.Link.Toolsets.common.targets).
   $zipPath = Join-Path $outDir "lld-link.zip"
   Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
+  Get-ChildItem $outDir -Filter 'lld-link.zip.part*' -ErrorAction SilentlyContinue | Remove-Item -Force
   Compress-Archive -Path $binPath -DestinationPath $zipPath -Force
   Remove-Item $binPath -Force
 
-  $mb = [math]::Round((Get-Item $zipPath).Length / 1MB, 1)
-  Write-Host "[$key] -> $zipPath ($mb MB)"
+  $partBytes = $PartSizeMB * 1MB
+  $bytes = [IO.File]::ReadAllBytes($zipPath)
+  $index = 1
+  $parts = @()
+  for ($offset = 0; $offset -lt $bytes.Length; $offset += $partBytes) {
+    $len = [Math]::Min($partBytes, $bytes.Length - $offset)
+    $partPath = "$zipPath.part{0:D2}" -f $index
+    $slice = New-Object byte[] $len
+    [Array]::Copy($bytes, $offset, $slice, 0, $len)
+    [IO.File]::WriteAllBytes($partPath, $slice)
+    $parts += $partPath
+    $index++
+  }
+  Remove-Item $zipPath -Force
+
+  $mb = [math]::Round($bytes.Length / 1MB, 1)
+  Write-Host "[$key] -> $($parts.Count) part(s), $mb MB total"
+  $parts | ForEach-Object { Write-Host ("       {0}  {1} MB" -f (Split-Path $_ -Leaf), [math]::Round((Get-Item $_).Length / 1MB, 1)) }
 }
 
 Write-Host "Done. lld-link $Version extracted for: $($keys -join ', ')"

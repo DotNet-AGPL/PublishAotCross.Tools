@@ -22,7 +22,7 @@ The xwin implemetation is based on [Windows10CE's project](https://github.com/Wi
 
 #### Zig
 
-By default it relies on Zig provided by the unofficial [Vezel.Zig.Toolsets](https://github.com/vezel-dev/zig-toolsets) NuGet package. You can specify version of this package using the `ZigVersion` property (current default: `0.17.0.1`). Instructions for using your own Zig binaries are near the end of this document.
+By default it relies on Zig provided by the unofficial [Vezel.Zig.Toolsets](https://github.com/vezel-dev/zig-toolsets) NuGet package. You can specify version of this package using the `ZigVersion` property (current default: `0.17.1.1`). Instructions for using your own Zig binaries are near the end of this document.
 
 If you don't want to use Zig from the Vezel.Zig.Toolsets NuGet package, you can specify `/p:UseExternalZig=true`. This will use whatever Zig is on your PATH. [Download](https://ziglang.org/download/) an archive with Zig for your host machine, extract it and place it on your PATH.
 

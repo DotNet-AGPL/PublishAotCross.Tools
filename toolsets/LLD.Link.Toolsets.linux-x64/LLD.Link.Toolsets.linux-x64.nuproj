@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.Build.NoTargets">
   <Import Project="../ToolsetsVersion.props" />
+  <Import Project="../LLD.Link.Toolsets.common.targets" />
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
@@ -36,12 +37,12 @@
     </Task>
   </UsingTask>
 
-  <Target Name="EnsureLldLinkExtracted" BeforeTargets="Build">
+  <Target Name="EnsureLldLinkExtracted" BeforeTargets="Build" DependsOnTargets="EnsureLldLinkZipMerged">
     <PropertyGroup>
       <_LldZip>$(MSBuildProjectDirectory)/tools/lld-link.zip</_LldZip>
       <_LldExe>$(MSBuildProjectDirectory)/tools/lld-link</_LldExe>
     </PropertyGroup>
-    <Warning Condition="!Exists('$(_LldZip)')" Text="lld-link.zip not found. Run download-lld-link.ps1 first." />
+    <Warning Condition="!Exists('$(_LldZip)')" Text="lld-link.zip not found (no parts either). Run download-lld-link.ps1 first." />
     <ExtractLldZip Condition="Exists('$(_LldZip)') and !Exists('$(_LldExe)')" ZipPath="$(_LldZip)" TargetDir="$(MSBuildProjectDirectory)/tools" />
   </Target>
 </Project>

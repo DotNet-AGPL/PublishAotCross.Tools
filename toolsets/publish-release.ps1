@@ -16,12 +16,10 @@ $ErrorActionPreference = "Stop"
 # Release set for the current Revision. Order matters: every package must be
 # pushed after the packages it depends on.
 #
-#   $Children  per-host content packages (new ones only; published ones are skipped)
-#   $Parents   meta packages, depend on the children
-#   $Main      PublishAotCross.Tools, depends on the parents + Zig
+#   children (content packages) -> parents (meta packages) -> SDK -> main
 #
-# Packages that are already public at the same version are NOT part of this
-# list (e.g. XWin.Store.x64/arm64, LLD.Link.Toolsets.*, MacOSX.SDK for .14).
+# A Revision bump republishes ALL of them (16 packages); when only the main
+# package changed, trim the list accordingly (see docs/RELEASE-CHECKLIST.md).
 # ---------------------------------------------------------------------------
 
 [xml]$versions = Get-Content "$PSScriptRoot\ToolsetsVersion.props"
@@ -31,16 +29,32 @@ $lld = $props.LLDVersion.InnerText
 $xwin = $props.XWinVersion.InnerText
 $sdk = $props.MacOSXSDKVersion.InnerText
 $mainVer = "$($props.PublishAotCrossVersionPrefix.InnerText).$revision"
+$lldVer = "$lld.$revision"
+$xwinVer = "$xwin.$revision"
+$sdkVer = "$sdk.$revision"
 
 $release = @(
-  @{ Id = "MacOSX.Symbols.Toolsets.win-x64";   Version = "$lld.$revision"; File = "MacOSX.Symbols.Toolsets.win-x64.$lld.$revision.nupkg" }
-  @{ Id = "MacOSX.Symbols.Toolsets.win-arm64"; Version = "$lld.$revision"; File = "MacOSX.Symbols.Toolsets.win-arm64.$lld.$revision.nupkg" }
-  @{ Id = "MacOSX.Symbols.Toolsets.linux-x64"; Version = "$lld.$revision"; File = "MacOSX.Symbols.Toolsets.linux-x64.$lld.$revision.nupkg" }
-  @{ Id = "MacOSX.Symbols.Toolsets.linux-arm64"; Version = "$lld.$revision"; File = "MacOSX.Symbols.Toolsets.linux-arm64.$lld.$revision.nupkg" }
-  @{ Id = "MacOSX.Symbols.Toolsets";           Version = "$lld.$revision"; File = "MacOSX.Symbols.Toolsets.$lld.$revision.nupkg" }
-  @{ Id = "LLD.Link.Toolsets";                 Version = "$lld.$revision"; File = "LLD.Link.Toolsets.$lld.$revision.nupkg" }
-  @{ Id = "XWin.Store";                        Version = "$xwin.$revision"; File = "XWin.Store.$xwin.$revision.nupkg" }
-  @{ Id = "PublishAotCross.Tools";             Version = $mainVer;         File = "PublishAotCross.Tools.$mainVer.nupkg" }
+  # lld-link children
+  @{ Id = "LLD.Link.Toolsets.win-x64";   Version = $lldVer;  File = "LLD.Link.Toolsets.win-x64.$lldVer.nupkg" }
+  @{ Id = "LLD.Link.Toolsets.win-arm64"; Version = $lldVer;  File = "LLD.Link.Toolsets.win-arm64.$lldVer.nupkg" }
+  @{ Id = "LLD.Link.Toolsets.linux-x64"; Version = $lldVer;  File = "LLD.Link.Toolsets.linux-x64.$lldVer.nupkg" }
+  @{ Id = "LLD.Link.Toolsets.linux-arm64"; Version = $lldVer; File = "LLD.Link.Toolsets.linux-arm64.$lldVer.nupkg" }
+  @{ Id = "LLD.Link.Toolsets.osx-arm64"; Version = $lldVer;  File = "LLD.Link.Toolsets.osx-arm64.$lldVer.nupkg" }
+  # dsymutil children
+  @{ Id = "MacOSX.Symbols.Toolsets.win-x64";   Version = $lldVer; File = "MacOSX.Symbols.Toolsets.win-x64.$lldVer.nupkg" }
+  @{ Id = "MacOSX.Symbols.Toolsets.win-arm64"; Version = $lldVer; File = "MacOSX.Symbols.Toolsets.win-arm64.$lldVer.nupkg" }
+  @{ Id = "MacOSX.Symbols.Toolsets.linux-x64"; Version = $lldVer; File = "MacOSX.Symbols.Toolsets.linux-x64.$lldVer.nupkg" }
+  @{ Id = "MacOSX.Symbols.Toolsets.linux-arm64"; Version = $lldVer; File = "MacOSX.Symbols.Toolsets.linux-arm64.$lldVer.nupkg" }
+  # Windows SDK store children
+  @{ Id = "XWin.Store.x64";   Version = $xwinVer; File = "XWin.Store.x64.$xwinVer.nupkg" }
+  @{ Id = "XWin.Store.arm64"; Version = $xwinVer; File = "XWin.Store.arm64.$xwinVer.nupkg" }
+  # meta packages
+  @{ Id = "LLD.Link.Toolsets";         Version = $lldVer;  File = "LLD.Link.Toolsets.$lldVer.nupkg" }
+  @{ Id = "MacOSX.Symbols.Toolsets";   Version = $lldVer;  File = "MacOSX.Symbols.Toolsets.$lldVer.nupkg" }
+  @{ Id = "XWin.Store";                Version = $xwinVer; File = "XWin.Store.$xwinVer.nupkg" }
+  # content package + main
+  @{ Id = "MacOSX.SDK";                Version = $sdkVer;  File = "MacOSX.SDK.$sdkVer.nupkg" }
+  @{ Id = "PublishAotCross.Tools";     Version = $mainVer; File = "PublishAotCross.Tools.$mainVer.nupkg" }
 )
 
 function Read-Nuspec([string]$Path) {

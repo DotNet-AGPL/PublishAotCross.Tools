@@ -17,7 +17,7 @@ toolsets/                                 各平台"内容包"（作为 NuGet �
 ├── LLD.Link.Toolsets/                    父包 → 5 个平台的 lld-link（无内容）
 │   ├── LLD.Link.Toolsets.win-x64 / .win-arm64
 │   ├── LLD.Link.Toolsets.linux-x64 / .linux-arm64
-│   └── LLD.Link.Toolsets.osx-arm64       子包（tools/lld-link.zip 随仓库提交）
+│   └── LLD.Link.Toolsets.osx-arm64       子包（tools/lld-link.zip.partNN 随仓库提交（≤25MB 分片，打包时合并））
 ├── MacOSX.Symbols.Toolsets/                   父包 → 4 个宿主的 LLVM dsymutil
 │   ├── win-x64 / win-arm64 / linux-x64 / linux-arm64   子包（tools/ gitignored，脚本生成）
 ├── MacOSX.SDK                            过滤后的 macOS SDK 子集（osx 交叉用，无子包）
@@ -79,11 +79,11 @@ test/
 单一来源：`toolsets/ToolsetsVersion.props`
 
 ```xml
-<ZigVersion>0.17.0.1</ZigVersion>
+<ZigVersion>0.17.1.1</ZigVersion>
 <XWinVersion>0.10.0</XWinVersion>
-<LLDVersion>23.1.3</LLDVersion>
+<LLDVersion>23.1.5</LLDVersion>
 <MacOSXSDKVersion>26.1</MacOSXSDKVersion>
-<Revision>14</Revision>                                  <!-- 全包共享 -->
+<Revision>15</Revision>                                  <!-- 全包共享 -->
 <PublishAotCrossVersionPrefix>1.0.3</PublishAotCrossVersionPrefix>
 <PublishAotCrossVersion>$(PublishAotCrossVersionPrefix).$(Revision)</PublishAotCrossVersion>
 ```
@@ -134,7 +134,7 @@ test/
 - 宿主的 binutils `objcopy` 是**单格式**的：x64 上的它**无法剥离 aarch64 ELF** → 必须用多格式的 `llvm-objcopy`。
 
 **本项目的做法**
-- 随包内置各宿主 `llvm-objcopy`（LLVM 23.1.3）：`src/build/llvm-objcopy/{linux-x64,linux-arm64,osx-arm64}/llvm-objcopy` + `win-x64/llvm-objcopy.exe`，**随仓库提交**。
+- 随包内置各宿主 `llvm-objcopy`（LLVM 23.1.5）：`src/build/llvm-objcopy/{linux-x64,linux-arm64,osx-arm64}/llvm-objcopy` + `win-x64/llvm-objcopy.exe`，**随仓库提交**。
   - `SetPath.cs` 按宿主把对应目录前置到 PATH ⇒ ILC 优先命中它 ⇒ 跨架构剥离正常。
   - `win-arm64` 宿主复用 `win-x64`（x64 二进制在 arm64 上以模拟方式运行）。
 - `src/build/objcopy` 是**兜底 shim**（当没有 `llvm-objcopy` 时才会走到）：
@@ -190,7 +190,7 @@ test/
 - 非 macOS 的 lldb 不自动加载 dSYM：`target symbols add <bin>.dSYM/Contents/Resources/DWARF/<bin>`
   （传 `.dSYM` 目录会报 `invalid module path`）。
 
-**打包/验证（1.0.3.14 + MacOSX.Symbols.Toolsets 23.1.3.14 实测）**
+**打包/验证（1.0.3.14 + MacOSX.Symbols.Toolsets 23.1.5.14 实测）**
 - 4 个子包：win-x64 19.3MB、win-arm64 18.2MB、linux-x64 30.5MB、linux-arm64 29.4MB（共 ≈97MB）；父包 4KB（仅依赖）。
 - 主包依赖 4 个子包（nuspec 已核对），`StripSymbols=true` 端到端：exit=0、`<bin>.dSYM` 1.5MB、二进制 1.04MB、**0 条 warning**，
   lldb 解析出 `Program.cs:3`。
@@ -207,7 +207,7 @@ test/
 - `sdk`：下载并过滤 macOS SDK → 打 `MacOSX.SDK` 包 → 上传 artifact。
 - `symbols`：抽出 4 个宿主的 `dsymutil`（`tools/*/tools` 走 actions/cache，命中就跳过 ~5GB 的 LLVM 归档下载）→
   打 `MacOSX.Symbols.Toolsets` 父包 + 4 子包 → 上传 artifact。
-- `metapkgs`：从随仓库提交的 `tools/lld-link.zip` 打出 5 个 LLD 子包 + `LLD.Link.Toolsets` / `XWin.Store` 两个父包
+- `metapkgs`：从随仓库提交的 `tools/lld-link.zip.partNN`（打包时合并）打出 5 个 LLD 子包 + `LLD.Link.Toolsets` / `XWin.Store` 两个父包
   （`XWin.Store.*` 内容 gitignored，仍从 feed 还原）→ 上传 artifact。
 - `build`（矩阵 Windows/Linux/macOS）：把 `MacOSX.SDK` + `MacOSX.Symbols.Toolsets*` 放入本地 `artifacts` feed，
   **本地打主包**（合成版本 `0.0.0-ci`），再交叉编译 `TestNupkg`。
@@ -282,7 +282,7 @@ dotnet publish test/TestPublish/TestNupkg.csproj -c Release -f net10.0 -r osx-ar
 
 ## 10. 本次会话要点（简版时间线）
 
-1. 完成依赖升级并发布 `.12` 系列（`0.6.0.12` / `0.10.0.12` / `23.1.3.12` / `26.1.12`）。
+1. 完成依赖升级并发布 `.12` 系列（`0.6.0.12` / `0.10.0.12` / `23.1.5.12` / `26.1.12`）。
 2. CI 的 Linux job 卡死 → 定位为 **包内 `objcopy` shim 在 Linux 上 `exec` 自身**。
 3. 修复 shim（消除自递归）→ 暴露"binutils 无法剥离 aarch64"→ 改为**尽力而为、不中断构建**。
 4. 方案 A：**内置各宿主多格式 `llvm-objcopy`**（新增 `fetch-objcopy.yml` 在 CI 生成），`SetPath.cs` 前置；`objcopy` shim 保留为兜底。
