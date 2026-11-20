@@ -166,6 +166,10 @@ dotnet pack src\PublishAotCross.Tools.nuproj -o artifacts --force
 # 3. 推送（示例版本 1.0.3.14）
 dotnet nuget push artifacts\PublishAotCross.Tools.1.0.3.14.nupkg --api-key <key> --source https://api.nuget.org/v3/index.json
 # 注意推送顺序：父包（LLD.Link.Toolsets / XWin.Store / MacOSX.Symbols.Toolsets）必须在主包之前
+# 推荐用脚本（自动排序 + 内容/依赖闭包校验 + 幂等）：
+#   pwsh toolsets\publish-release.ps1 -Check   # 只校验
+#   pwsh toolsets\publish-release.ps1 -Push    # 按 子包→父包→主包 顺序推送
+# 完整清单见 docs/RELEASE-CHECKLIST.md
 ```
 
 ## 测试
