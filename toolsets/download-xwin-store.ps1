@@ -43,3 +43,8 @@ $szX64 = (Get-ChildItem $x64Dir -Recurse -File | Measure-Object -Property Length
 $szArm64 = (Get-ChildItem $arm64Dir -Recurse -File | Measure-Object -Property Length -Sum).Sum
 Write-Host "  X64 store: $([math]::Round($szX64/1MB, 0)) MB"
 Write-Host "  ARM64 store: $([math]::Round($szArm64/1MB, 0)) MB"
+
+# robocopy reports 1 when it copied files (which is success), and the GitHub
+# Actions pwsh wrapper propagates $LASTEXITCODE as the step result.
+$global:LASTEXITCODE = 0
+exit 0
