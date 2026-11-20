@@ -103,9 +103,43 @@ jobs:
           path: artifacts/MacOSX.SymbolTools*.nupkg
           if-no-files-found: error
 
+  # The meta packages carry no binaries, so they can be packed without their
+  # (gitignored) content. Their children come from the feeds during restore.
+  metapkgs:
+    name: Build meta packages
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # NuGet.Config points at ./artifacts; it must exist before restore.
+      - name: Create local NuGet feed folder
+        shell: bash
+        run: mkdir -p artifacts
+
+      - name: Pack LLD.Link.Toolsets and XWin.Store
+        shell: pwsh
+        run: |
+          dotnet pack toolsets/LLD.Link.Toolsets -c Release -o artifacts --force
+          dotnet pack toolsets/XWin.Store -c Release -o artifacts --force
+
+      - name: Upload meta packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: metapkg-nupkg
+          path: |
+            artifacts/LLD.Link.Toolsets.*.nupkg
+            artifacts/XWin.Store.*.nupkg
+          if-no-files-found: error
+
   build:
     name: Cross-compile (${{ matrix.host.name }})
-    needs: [sdk, symbols]
+    needs: [sdk, symbols, metapkgs]
     runs-on: ${{ matrix.host.os }}
     strategy:
       fail-fast: false
@@ -151,6 +185,12 @@ jobs:
           name: macosx-symboltools-nupkg
           path: artifacts
 
+      - name: Download meta packages into the local feed
+        uses: actions/download-artifact@v4
+        with:
+          name: metapkg-nupkg
+          path: artifacts
+
       - name: Pack PublishAotCross.Tools into the local feed
         shell: bash
         run: >
@@ -188,7 +228,7 @@ jobs:
   # MacOSX.SymbolTools (built by the "symbols" job); no NuGet push is involved.
   cross_osx_arm64:
     name: Cross-compile osx-arm64 (Windows host)
-    needs: [sdk, symbols]
+    needs: [sdk, symbols, metapkgs]
     runs-on: windows-latest
     steps:
       - name: Checkout repo
@@ -216,6 +256,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: macosx-symboltools-nupkg
+          path: artifacts
+
+      - name: Download meta packages into the local feed
+        uses: actions/download-artifact@v4
+        with:
+          name: metapkg-nupkg
           path: artifacts
 
       - name: Pack PublishAotCross.Tools into the local feed

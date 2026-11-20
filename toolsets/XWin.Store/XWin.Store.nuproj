@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.Build.NoTargets">
+  <Import Project="../ToolsetsVersion.props" />
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <PackageId>XWin.Store</PackageId>
+    <Version>$(XWinVersion).$(Revision)</Version>
+    <Authors>Microsoft;DotNet-AGPL</Authors>
+    <Company>DotNet-AGPL</Company>
+    <Description>Meta package: Windows SDK/CRT import library store (xwin splat output) for every supported architecture (x64, arm64), used by NativeAOT cross-compilation.</Description>
+    <PackageProjectUrl>https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/XWin.Store</PackageProjectUrl>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="XWin.Store.x64" Version="$(XWinVersion).$(Revision)" />
+    <PackageReference Include="XWin.Store.arm64" Version="$(XWinVersion).$(Revision)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE" Pack="true" PackagePath="/" />
+    <None Include="../../NOTICE" Pack="true" PackagePath="/" />
+    <None Include="../../skills/xwin-store/**" Pack="true" PackagePath="skills/xwin-store/" />
+  </ItemGroup>
+</Project>

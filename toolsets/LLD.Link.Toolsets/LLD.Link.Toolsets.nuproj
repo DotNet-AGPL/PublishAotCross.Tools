@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.Build.NoTargets">
+  <Import Project="../ToolsetsVersion.props" />
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <PackageId>LLD.Link.Toolsets</PackageId>
+    <Version>$(LLDVersion).$(Revision)</Version>
+    <Authors>LLVM Project;DotNet-AGPL</Authors>
+    <Company>DotNet-AGPL</Company>
+    <Description>Meta package: lld-link (LLD COFF linker) for every supported host (win-x64, win-arm64, linux-x64, linux-arm64, osx-arm64). MSVC-compatible linker used for NativeAOT cross-compilation.</Description>
+    <PackageProjectUrl>https://github.com/DotNet-AGPL/PublishAotCross.Tools/tree/main/toolsets/LLD.Link.Toolsets</PackageProjectUrl>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LLD.Link.Toolsets.win-x64" Version="$(LLDVersion).$(Revision)" />
+    <PackageReference Include="LLD.Link.Toolsets.win-arm64" Version="$(LLDVersion).$(Revision)" />
+    <PackageReference Include="LLD.Link.Toolsets.linux-x64" Version="$(LLDVersion).$(Revision)" />
+    <PackageReference Include="LLD.Link.Toolsets.linux-arm64" Version="$(LLDVersion).$(Revision)" />
+    <PackageReference Include="LLD.Link.Toolsets.osx-arm64" Version="$(LLDVersion).$(Revision)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE" Pack="true" PackagePath="/" />
+    <None Include="../../NOTICE" Pack="true" PackagePath="/" />
+    <None Include="../../skills/lld-link/**" Pack="true" PackagePath="skills/lld-link/" />
+  </ItemGroup>
+</Project>

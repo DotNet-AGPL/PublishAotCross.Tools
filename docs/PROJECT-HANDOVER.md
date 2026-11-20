@@ -12,10 +12,10 @@
 ```
 toolsets/                                 各平台"内容包"（作为 NuGet 被主包引用）
 ├── ToolsetsVersion.props                 ★ 全仓库版本的单一来源
-├── XWin.Store.x64 / .arm64               Windows SDK/CRT 导入库 store（内容 gitignored）
-├── LLD.Link.Toolsets.{win,linux,osx}-*   lld-link 链接器（各宿主平台一份）
+├── XWin.Store/                           父包 → x64 / arm64 导入库 store（内容 gitignored）
+├── LLD.Link.Toolsets/                    父包 → 5 个平台的 lld-link
+├── MacOSX.SymbolTools/                   父包 → 4 个宿主的 LLVM dsymutil
 ├── MacOSX.SDK                            过滤后的 macOS SDK 子集（osx 交叉用）
-├── MacOSX.SymbolTools/                   LLVM dsymutil（osx 交叉生成 .dSYM；父包 + 4 子包，tools/ gitignored）
 ├── LLVM-Source/                          维护者用的 LLVM 原始安装包（gitignored）
 └── download-*.ps1                        维护者脚本（重新生成上面各包的内容）
 
@@ -86,16 +86,18 @@ test/
 | 包 | 版本公式 |
 | --- | --- |
 | `PublishAotCross.Tools` | `$(PublishAotCrossVersionPrefix).$(Revision)` → 如 `1.0.3.14` |
-| `XWin.Store.*` | `$(XWinVersion).$(Revision)` |
-| `LLD.Link.Toolsets.*` | `$(LLDVersion).$(Revision)` |
+| `XWin.Store`（父）/ `XWin.Store.*` | `$(XWinVersion).$(Revision)` |
+| `LLD.Link.Toolsets`（父）/ `LLD.Link.Toolsets.*` | `$(LLDVersion).$(Revision)` |
 | `MacOSX.SDK` | `$(MacOSXSDKVersion).$(Revision)` |
-| `MacOSX.SymbolTools*` | `$(LLDVersion).$(Revision)`（与 LLVM 版本对齐，父包 + 4 子包共 5 个） |
+| `MacOSX.SymbolTools`（父）/ `.SymbolTools.*` | `$(LLDVersion).$(Revision)` |
 
 要点：
+- **主包只依赖 4 个父包 + 6 个 Zig 包**（共 11 行）；子包（`.<rid>`）由父包引用。新增平台只改父包一行。
+- 父包（`XWin.Store` / `LLD.Link.Toolsets` / `MacOSX.SymbolTools`）**不含二进制**，CI 可在无内容的情况下直接打包。
 - **`Revision` 全包共享**：主包依赖的就是 `…$(Revision)`。改动 `Revision` ⇒ **13 个包都要重发**（toolsets 通常只是"换版本号"）。
 - **主包 = 前段 + Revision**：前段（`PublishAotCrossVersionPrefix`）可单独调整。
-- **发布顺序：先 12 个 toolset/store/SDK/SymbolTools，再主包**。否则用户还原与 CI 都会 `NU1102`（找不到 `.Revision` 版本）。
-- 线上历史：`0.6.0.5 … 0.6.0.12` → `1.0.1.13` → `1.0.2.13`（仅主包变化：只升"前段"，toolset 仍 `.13`）→ `1.0.3.14`（新增 `MacOSX.SymbolTools*`）。
+- **发布顺序：先 3 个父包 + 其余子包/toolset，最后主包**。否则用户还原与 CI 都会 `NU1102`（找不到 `.Revision` 版本）。
+- 线上历史：`0.6.0.5 … 0.6.0.12` → `1.0.1.13` → `1.0.2.13`（仅主包变化：只升"前段"，toolset 仍 `.13`）→ `1.0.3.14`（新增 `MacOSX.SymbolTools*`，主包改为依赖父包）。
 
 ---
 
@@ -195,6 +197,7 @@ test/
 - `sdk`：下载并过滤 macOS SDK → 打 `MacOSX.SDK` 包 → 上传 artifact。
 - `symbols`：抽出 4 个宿主的 `dsymutil`（`tools/*/tools` 走 actions/cache，命中就跳过 ~5GB 的 LLVM 归档下载）→
   打 `MacOSX.SymbolTools` 父包 + 4 子包 → 上传 artifact。
+- `metapkgs`：打 `LLD.Link.Toolsets` 与 `XWin.Store` 两个父包（不含二进制，秒级）→ 上传 artifact。
 - `build`（矩阵 Windows/Linux/macOS）：把 `MacOSX.SDK` + `MacOSX.SymbolTools*` 放入本地 `artifacts` feed，
   **本地打主包**（合成版本 `0.0.0-ci`），再交叉编译 `TestNupkg`。
 - `cross_osx_arm64`（Windows 宿主）：默认产物 + **额外跑一次 `-p:DebugType=portable -p:StripSymbols=true`**，

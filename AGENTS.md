@@ -4,12 +4,14 @@
 
 ```
 toolsets/
+├── XWin.Store/                         ← 父包（metapackage，依赖 x64/arm64，无内容）
 ├── XWin.Store.x64/                     ← x64 SDK 导入库 NuGet 包
 │   ├── XWin.Store.x64.nuproj
 │   └── .xwin-store-tmp/                 ← 过滤后的 SDK store（gitignored）
 ├── XWin.Store.arm64/                   ← arm64 SDK 导入库 NuGet 包
 │   ├── XWin.Store.arm64.nuproj
 │   └── .xwin-store-tmp/                 ← 过滤后的 SDK store（gitignored）
+├── LLD.Link.Toolsets/                  ← 父包（metapackage，依赖 5 个子包，无内容）
 ├── LLD.Link.Toolsets.win-x64/          ← lld-link NuGet 包（Windows x64）
 │   ├── LLD.Link.Toolsets.win-x64.nuproj
 │   └── tools/lld-link.zip
@@ -153,12 +155,17 @@ test/
 ## 主包 PublishAotCross.Tools
 
 ```bash
+# 依赖结构（11 个 PackageReference，全部是"父包 + Zig"）：
+#   XWin.Store、MacOSX.SDK、MacOSX.SymbolTools、LLD.Link.Toolsets + 6 个 Vezel.Zig.Toolsets
+#   ⇒ 子包（.<rid>）只由父包引用，主包不再逐个列平台；新增平台只改父包一行。
+
 # 1. 修改版本号：toolsets/ToolsetsVersion.props → PublishAotCrossVersionPrefix（前段）
 #    主包版本 = $(PublishAotCrossVersionPrefix).$(Revision)，Revision 与 toolsets 共享
 # 2. 打包
 dotnet pack src\PublishAotCross.Tools.nuproj -o artifacts --force
 # 3. 推送（示例版本 1.0.3.14）
 dotnet nuget push artifacts\PublishAotCross.Tools.1.0.3.14.nupkg --api-key <key> --source https://api.nuget.org/v3/index.json
+# 注意推送顺序：父包（LLD.Link.Toolsets / XWin.Store / MacOSX.SymbolTools）必须在主包之前
 ```
 
 ## 测试
@@ -189,7 +196,7 @@ dotnet publish test/AvaloniaApp/AvaloniaApp.csproj -c Release -r win-x64
 
 1. 创建 `toolsets/XWin.Store.linux-x64/` — 同 x64 结构，包含 linux 目标导入库
 2. 创建 `toolsets/LLD.Link.Toolsets.linux-x64/` — lld-link 为 linux 二进制
-3. 主 nuproj 添加 `PackageReference` 引用新平台包
+3. 在**父包**里加一行 `PackageReference`：`XWin.Store` / `LLD.Link.Toolsets`（主包不用动）
 
 ## 新会话快速上手
 
