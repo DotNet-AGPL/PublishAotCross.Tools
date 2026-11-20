@@ -52,7 +52,7 @@ A cross-linked Mach-O contains **no DWARF** (the linker only records a debug map
 * `<app>.dSYM` next to the executable (managed code gets full file/line info);
 * `llvm-objcopy -x` on the app, i.e. Apple's `strip -x` (local symbols dropped, external symbols kept).
 
-`StripSymbols` stays `false` by default for macOS targets when cross-compiling. Runtime C++ frames keep symbol names only (the runtime `.a` members cannot be re-read from the debug map). macOS finds the bundle by UUID automatically; elsewhere use `target symbols add <app>.dSYM/Contents/Resources/DWARF/<app>`.
+`StripSymbols` defaults to `true` for macOS targets — cross builds behave like a native macOS build. Pass `/p:StripSymbols=false` to keep everything in the binary and skip the `.dSYM`; note that the bundle then lands next to the executable, so exclude `*.dSYM` from published/released artifacts. Runtime C++ frames keep symbol names only (the runtime `.a` members cannot be re-read from the debug map). macOS finds the bundle by UUID automatically; elsewhere use `target symbols add <app>.dSYM/Contents/Resources/DWARF/<app>`.
 
 #### XWin
 

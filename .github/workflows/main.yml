@@ -281,6 +281,8 @@ jobs:
           -c Release -o artifacts --force
           -p:PublishAotCrossVersion=${{ env.LOCAL_PKG_VERSION }}
 
+      # StripSymbols defaults to true for macOS targets (matching a native macOS build),
+      # so this plain publish must already produce a .dSYM.
       - name: Cross-compile osx-arm64
         shell: bash
         run: >
@@ -288,10 +290,18 @@ jobs:
           -c Release -f net10.0 -r osx-arm64 -o output/osx-arm64
           -p:PublishAotCrossVersion=${{ env.LOCAL_PKG_VERSION }}
 
-      # Exercises the MacOSX.Symbols.Toolsets path: StripSymbols=true must produce a .dSYM
-      # and strip local symbols instead of failing on the missing Xcode tools.
-      # The obj/bin wipe is required: ILC's incremental check ignores the -g argument,
-      # so it would otherwise reuse the object built without debug info above.
+      # Reference build: debug info kept in the binary, nothing stripped.
+      - name: Cross-compile osx-arm64 keeping symbols
+        shell: bash
+        run: |
+          rm -rf test/TestPublish/bin test/TestPublish/obj
+          dotnet publish test/TestPublish/TestNupkg.csproj \
+            -c Release -f net10.0 -r osx-arm64 -o output/osx-arm64-keep \
+            -p:PublishAotCrossVersion=${{ env.LOCAL_PKG_VERSION }} \
+            -p:DebugType=portable -p:StripSymbols=false
+
+      # Exercises the MacOSX.Symbols.Toolsets path: .dSYM + strip, no Xcode required.
+      # The obj/bin wipe is required: ILC's incremental check ignores the -g argument.
       - name: Cross-compile osx-arm64 with dSYM
         shell: bash
         run: |
@@ -308,6 +318,14 @@ jobs:
           $magic = ($b | ForEach-Object { $_.ToString('x2') }) -join ''
           Write-Host "magic=$magic"
           if ($magic -notmatch '^(cffaedfe|cafebabe)') { throw "Not a Mach-O file (magic=$magic)" }
+
+      - name: Verify default build strips and writes a dSYM
+        shell: pwsh
+        run: |
+          $bin = "output/osx-arm64/TestNupkg"
+          $dwarf = "$bin.dSYM/Contents/Resources/DWARF/TestNupkg"
+          if (-not (Test-Path $dwarf)) { throw "dSYM is missing on the default macOS cross build ($dwarf)" }
+          Write-Host "default build dSYM DWARF: $([math]::Round((Get-Item $dwarf).Length/1KB,1)) KB"
 
       - name: Verify dSYM and strip
         shell: pwsh
@@ -326,9 +344,9 @@ jobs:
           if ($magic -notmatch '^(cffaedfe|cafebabe)') { throw "Stripped binary is not a Mach-O file (magic=$magic)" }
 
           $stripped = (Get-Item $bin).Length
-          $plain = (Get-Item "output/osx-arm64/TestNupkg").Length
-          Write-Host "binary size: plain=$plain stripped=$stripped"
-          if ($stripped -ge $plain) { throw "binary was not stripped ($stripped >= $plain)" }
+          $kept = (Get-Item "output/osx-arm64-keep/TestNupkg").Length
+          Write-Host "binary size: keep=$kept stripped=$stripped"
+          if ($stripped -ge $kept) { throw "binary was not stripped ($stripped >= $kept)" }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

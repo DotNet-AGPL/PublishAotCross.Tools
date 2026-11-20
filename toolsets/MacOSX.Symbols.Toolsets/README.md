@@ -40,9 +40,11 @@ Each per-host package sets a property with the directory containing the binary:
 <MacOSXSymbolsToolsetsLinuxArm64Dir>…/tools/</MacOSXSymbolsToolsetsLinuxArm64Dir>
 ```
 
-`PublishAotCross.Tools` picks the one matching the host and, when `StripSymbols=true`
-and the target is macOS on a non-macOS host, runs the equivalent of ILCompiler's native
-Apple step (`dsymutil … && strip -no_code_signature_warning -x …`):
+`PublishAotCross.Tools` picks the one matching the host and, for macOS targets on a
+non-macOS host, runs the equivalent of ILCompiler's native Apple step
+(`dsymutil … && strip -no_code_signature_warning -x …`). This is **on by default**
+(`StripSymbols` defaults to `true`, like a native macOS build); `/p:StripSymbols=false`
+turns it off:
 
 1. `dsymutil --quiet <binary>` → `<binary>.dSYM` next to the executable;
 2. `llvm-objcopy -x <binary>` → drop local symbols (`-x` = Apple `strip -x`, which keeps

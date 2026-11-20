@@ -139,7 +139,7 @@ test/
 # 注意：tools/dsymutil* 为 gitignored，不入库；nuproj 缺文件时会 Error 提示先跑脚本
 
 # 消费方（PublishAotCross.Tools 的 Crosscompile.targets 目标 PublishAotCrossMacOSStrip）：
-#   StripSymbols=true + osx 目标 + 非 macOS 宿主
+#   osx 目标 + 非 macOS 宿主（StripSymbols 默认 true，-p:StripSymbols=false 可关）
 #   → PublishAotCrossMacOSStripGuard（BeforeTargets=SetupOSSpecificProps）执行期把 StripSymbols 置 false，
 #     屏蔽 ILC 的 Xcode 分支（全局 -p:StripSymbols=true 在评估期无法覆盖，只能在目标里改）
 #   → dsymutil --quiet <bin>（生成 <bin>.dSYM）

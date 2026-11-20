@@ -111,9 +111,10 @@ test/
 - `MacOSX.SDK` 包（过滤后的 SDK 子集，约 14.7MB）自动 `PackageReference` ；其 `buildTransitive/MacOSX.SDK.props` 给出 `MacOSXSDKDir`。
 - 无需 Mac：Zig 链接 + 注入的 SDK 搜索路径即可产出 Mach-O。
 - **`StripSymbols` 语义**：`RuntimeIdentifier.StartsWith('osx') && !HostRuntimeIdentifier.StartsWith('osx')`
-  ⇒ 默认 `false`（不剥离、不生成 .dSYM）；显式设 `true` 时**不再报错**，改由本包用
-  `MacOSX.Symbols.Toolsets` 的 LLVM `dsymutil` + `llvm-objcopy -x` 复刻 macOS 原生
-  `dsymutil && strip -no_code_signature_warning -x`（详见第 5 节）。
+  ⇒ 默认 **`true`**（与 ILC 对非 Windows 目标的默认一致，也和 macOS 原生构建一致）：
+  由本包用 `MacOSX.Symbols.Toolsets` 的 LLVM `dsymutil` + `llvm-objcopy -x` 复刻
+  `dsymutil && strip -no_code_signature_warning -x`；`/p:StripSymbols=false` 可关闭。
+  产物目录会多出 `<App>.dSYM`（与原生相同），发布时记得排除。
 - **Mach-O 里没有 DWARF**：链接器（ld64 / zig 内置的 ld64.lld）只写 **N_OSO debug map**，
   不写 `__DWARF` 段。实测：未剥离的 Mach-O（即使 `-g` 链接）用 `llvm-dwarfdump` 查 CU = 0
   ⇒ **没有 `.dSYM` 就完全没有文件名/行号**（"不剥离"并不等于"可调试"）。
@@ -158,7 +159,7 @@ test/
   - 该脚本对 `.tar.xz` 依次尝试：原生 bsdtar → PATH 上的 `xz`（Git for Windows/MSYS2）→ WSL → 完整 7-Zip（`7zr` 不支持 xz）。
 
 **主包侧**（`src/build/Crosscompile.targets`）
-- 属性：`_PublishAotCrossMacOSStrip`（`osx` 目标 + 非 macOS 宿主 + `StripSymbols=true`）。
+- 属性：`_PublishAotCrossMacOSStrip`（`osx` 目标 + 非 macOS 宿主 + `StripSymbols=true`，**默认为 true**）。
 - **必须先"关掉 ILC 的 Apple 分支"**：ILC 的 `Microsoft.NETCore.Native.targets:413` 只要 `StripSymbols=true` 就会跑
   `dsymutil … && strip -no_code_signature_warning -x …`。而 `dotnet publish -p:StripSymbols=true` 是**全局属性**，
   评估期赋值**无法覆盖**（`src/build/Crosscompile.targets` 里那句 `<StripSymbols Condition=…>false</StripSymbols>` 只对 csproj 内设置有效）。
@@ -206,9 +207,9 @@ test/
   （`XWin.Store.*` 内容 gitignored，仍从 feed 还原）→ 上传 artifact。
 - `build`（矩阵 Windows/Linux/macOS）：把 `MacOSX.SDK` + `MacOSX.Symbols.Toolsets*` 放入本地 `artifacts` feed，
   **本地打主包**（合成版本 `0.0.0-ci`），再交叉编译 `TestNupkg`。
-- `cross_osx_arm64`（Windows 宿主）：默认产物 + **额外跑一次 `-p:DebugType=portable -p:StripSymbols=true`**，
-  断言 `<bin>.dSYM` 存在且 ≥100KB、Mach-O magic 合法、二进制确实变小；两次发布之间会清 `bin/obj`
-  （ILC 增量判定不含 `-g`，不清会复用无 DWARF 的 `.o`）。
+- `cross_osx_arm64`（Windows 宿主）：**默认产物**（必须带 `.dSYM`）+ `-p:DebugType=portable -p:StripSymbols=false`（对照基准）
+  + `-p:DebugType=portable -p:StripSymbols=true`（断言 dSYM ≥100KB 且比基准小）；每次切换前清 `bin/obj`
+  （ILC 增量判定不含 `-g`）。
 - `run_osx_arm64`（macOS runner）：分别运行普通产物与**剥离后**的产物 ⇒ 证明 `llvm-objcopy -x` 后仍可执行。
 - `validate`：跑 linux-x64。
 - CI **不推送** NuGet；`XWin.Store.*` / `LLD.*` 内容 gitignored，CI 只能从 feed **还原**它们。

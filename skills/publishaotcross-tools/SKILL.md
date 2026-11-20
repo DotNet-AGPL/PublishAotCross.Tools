@@ -54,7 +54,7 @@ non-Windows targets. **`osx-x64` and 32-bit targets (`win-arm`, arm32) are not s
 | Property | Purpose |
 | --- | --- |
 | `/p:GlibcVersion=2.35` | Lower the glibc floor of the Linux output |
-| `/p:StripSymbols=false` | Keep symbols inside the executable (also the default for `osx-*` when cross-compiling) |
+| `/p:StripSymbols=false` | Keep symbols inside the executable (macOS cross builds default to `true`, like a native macOS build) |
 | `/p:StripSymbols=true` | Strip + `<binary>.dSYM` on macOS targets (a bundled LLVM `dsymutil` + `llvm-objcopy -x` replace Xcode's tools) |
 | `/p:AotPreferCustom=false` | Use the system native toolchain instead of the bundled one |
 | `/p:PublishAotCrossDebug=false` | Silence the "which toolchain was picked" build message (on by default) |
@@ -64,9 +64,8 @@ non-Windows targets. **`osx-x64` and 32-bit targets (`win-arm`, arm32) are not s
 - Do **not** set `StripSymbols=false` "to make it work". Stripping already works
   (a bundled multi-format `llvm-objcopy` is used); a `.dbg` file next to the
   executable on Linux is the expected, normal output.
-- Do **not** assume a cross-built macOS binary without `StripSymbols=true` is
-  debuggable: the linker never writes DWARF into Mach-O, so line info exists only
-  inside the `.dSYM`.
+- Do **not** assume a cross-built macOS binary is debuggable on its own: the linker never
+  writes DWARF into Mach-O, so line info lives in the `.dSYM` (produced by default).
 - Do **not** install Visual Studio C++ tools or Xcode for cross builds. Xcode is
   only needed when building macOS **natively on macOS**.
 - Do **not** try `win-arm` (arm32) — Native AOT does not support it (`NETSDK1203`).
@@ -90,7 +89,7 @@ non-Windows targets. **`osx-x64` and 32-bit targets (`win-arm`, arm32) are not s
 - **Toggling `StripSymbols` needs a clean build**: when the linked binary is
   up to date, `LinkNative` is skipped and the strip/.dSYM step does not re-run
   (same behaviour as upstream ILC). `rm -rf bin obj` or `-t:Rebuild`.
-- **dSYM specifics** (macOS target with `StripSymbols=true`): managed code gets
+- **dSYM specifics** (macOS target, `StripSymbols` defaults to `true`): managed code gets
   full file/line info, but Native AOT *runtime* C++ frames only have symbol names
   (`dsymutil` cannot re-read the runtime `.a` members, 92 expected warnings are
   suppressed). `llvm-objcopy -x` equals Apple `strip -x`: local symbols go away,

@@ -13,11 +13,13 @@
          environment variable; the clang wrapper consumes it as MACOSX_SDK. -->
     <MacOSXSDKDir Condition="'$(MacOSXSDKDir)' == ''">$(MACOSX_SDK)</MacOSXSDKDir>
 
-    <!-- When cross-compiling to macOS from a non-macOS host, ILCompiler would
-         invoke the macOS-only `dsymutil`/`strip` tools, which Windows/Linux lack.
-         Default symbol stripping off in that case (users can override). -->
+    <!-- Match ILCompiler's default for non-Windows targets (StripSymbols=true). On a
+         macOS target ILCompiler's Apple branch would call the macOS-only `dsymutil` and
+         `strip`; for cross builds our own target below reproduces that with the bundled
+         LLVM tools, so the default output is the same .dSYM + stripped binary a native
+         macOS build produces. Use /p:StripSymbols=false to opt out. -->
     <_IsCrossCompilingToMacOS Condition="$(RuntimeIdentifier.StartsWith('osx')) and !$(HostRuntimeIdentifier.StartsWith('osx'))">true</_IsCrossCompilingToMacOS>
-    <StripSymbols Condition="'$(StripSymbols)' == '' and '$(_IsCrossCompilingToMacOS)' == 'true'">false</StripSymbols>
+    <StripSymbols Condition="'$(StripSymbols)' == '' and '$(_IsCrossCompilingToMacOS)' == 'true'">true</StripSymbols>
 
     <!-- ILCompiler's Apple branch runs `dsymutil <bin> && strip -no_code_signature_warning -x <bin>`,
          which needs the Xcode tools a Windows/Linux host does not have. Keep that branch off
